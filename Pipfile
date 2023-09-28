@@ -5,10 +5,13 @@ name = "pypi"
 
 [packages]
 cdp-data = "*"
+langchain = "*"
 
 [dev-packages]
 black = "*"
 ruff = "*"
+click = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.11"
