@@ -231,6 +231,7 @@ def get_events(
     connection: CDPConnection,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
+    event_ids: list[str] | None = None,
 ) -> t.Iterable[cdp_models.Event]:
     """Get all events within the provided times."""
     events = cdp_models.Event.collection
@@ -238,6 +239,8 @@ def get_events(
         events = events.filter("event_datetime", ">=", start_date)
     if end_date is not None:
         events = events.filter("event_datetime", "<", end_date)
+    if event_ids:
+        events = events.filter("id", "in", event_ids)
     return t.cast(t.Iterable[cdp_models.Event], events.fetch())
 
 
@@ -245,6 +248,7 @@ def get_events_for_slug(
     infrastructure_slug: str,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
+    event_ids: list[str] | None = None,
 ) -> t.Iterable[cdp_models.Event]:
     """
     Get all events within a provided times.
@@ -252,18 +256,19 @@ def get_events_for_slug(
     This is probably the droid you're looking for.
     """
     connection = CDPConnection.connect(infrastructure_slug)
-    return get_events(connection, start_date, end_date)
+    return get_events(connection, start_date, end_date, event_ids)
 
 
 def get_expanded_events(
     connection: CDPConnection,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
+    event_ids: list[str] | None = None,
 ) -> t.Iterable[ExpandedEvent]:
     """Get all events expanded with related sessions within a provided times."""
     return [
         expand_event(connection, event)
-        for event in get_events(connection, start_date, end_date)
+        for event in get_events(connection, start_date, end_date, event_ids)
     ]
 
 
@@ -271,6 +276,7 @@ def get_expanded_events_for_slug(
     infrastructure_slug: str,
     start_date: datetime.datetime | None = None,
     end_date: datetime.datetime | None = None,
+    event_ids: list[str] | None = None,
 ) -> t.Iterable[ExpandedEvent]:
     """
     Get all events expanded with related sessions within a provided times.
@@ -278,4 +284,4 @@ def get_expanded_events_for_slug(
     This is probably the droid you're looking for.
     """
     connection = CDPConnection.connect(infrastructure_slug)
-    return get_expanded_events(connection, start_date, end_date)
+    return get_expanded_events(connection, start_date, end_date, event_ids)

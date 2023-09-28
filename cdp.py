@@ -124,7 +124,7 @@ def events():
     pass
 
 
-@events.command()
+@events.command(name="list")
 @click.option(
     "-i",
     "--instance",
@@ -156,7 +156,7 @@ def events():
     required=False,
     help="The end date before which to get events from.",
 )
-def list(
+def list_cmd(
     instance: str,
     start_date: datetime.datetime | None,
     end_date: datetime.datetime | None,
@@ -209,8 +209,16 @@ def list(
     required=False,
     help="The end date before which to get events from.",
 )
+@click.option(
+    "--id",
+    "event_ids",
+    multiple=True,
+    required=False,
+    help="The ID of an event (or events) to expand.",
+)
 def expand(
     instance: str,
+    event_ids: tuple[str],
     start_date: datetime.datetime | None,
     end_date: datetime.datetime | None,
     jsonl: bool,
@@ -218,7 +226,7 @@ def expand(
 ):
     """Fetch and expand events from a CDP instance."""
     events = get_expanded_events_for_slug(
-        INSTANCES[instance], start_date=start_date, end_date=end_date
+        INSTANCES[instance], start_date, end_date, list(event_ids)
     )
     print(format(events, jsonl))
 
