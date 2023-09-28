@@ -10,9 +10,13 @@
 #
 #       ./cdp.py instances
 #
-# And you can get sessions from a CDP instance:
+# And you can get events from a CDP instance between given dates:
 #
-#       ./cdp.py sessions -c Seattle -d 2023-08-01
+#       ./cdp.py events -c Seattle -s 2023-08-01 -e 2023-08-15
+#
+# Events are *expanded* to include their related sessions and other
+# relevant data for summarization, including transcripts, matters, and
+# matter files.
 #
 # You can set a global instance name with the CDP_INSTANCE_NAME environment
 # variable:
@@ -21,20 +25,21 @@
 #
 # or:
 #
-#       CDP_INSTANCE_NAME=Seattle ./cdp.py sessions -d 2023-08-01
+#       CDP_INSTANCE_NAME=Seattle ./cdp.py events -s 2023-08-01
 #
-# All commands can output JSON Lines files with the --jsonl (or -j) option.
-# You can use this to pipe data into other tools, like jq, or back into
-# the CLI for further processing.
+# By default all commands output JSON lines data. That said, you can
+# pretty print it with --pretty (or -p):
 #
-# With this, you can (for example) get transcripts for a set of sessions:
+#       ./cdp.py events -d 2023-08-01 --pretty
 #
-#       ./cdp.py sessions -d 2023-08-01 --jsonl | ./cdp.py transcripts
+# It's not *that* pretty, but hey.
 #
-# You can of course also summarize sessions, which is what we're really
-# here for:
+# You can use default JSON Lines to pipe data into other tools, like jq, or
+# back into the CLI for further processing.
 #
-#       ./cdp.py sessions -d 2023-08-01 --jsonl | ./cdp.py summarize
+# With this, you can (for example) summarize events:
+#
+#       ./cdp.py events -d 2023-08-01 | ./cdp.py summarize
 #
 # That's about all for now. It's super early-stage code. Do we like this
 # general approach? Is it useful? Frustrating? Time will tell. :-)
@@ -48,15 +53,13 @@ import typing as t
 from inspect import getmembers
 
 import click
-from cdp_backend.database import models as cdp_models
 from cdp_data import CDPInstances
-from cdp_data.utils import connect_to_infrastructure
-from fireo.models import Model
-from fireo.queries.query_iterator import QueryIterator
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
+from summarize.queries import get_expanded_events_for_slug
+
 # ------------------------------------------------------------
-# Utility methods and types
+# Utilities: infrastructure names and slugs
 # ------------------------------------------------------------
 
 
@@ -80,7 +83,18 @@ INSTANCE_NAMES = list(INSTANCES.keys())
 CDP_INSTANCE_NAME: str | None = os.getenv("CDP_INSTANCE_NAME", None)
 
 
-class QIJSONEncoder(json.JSONEncoder):
+# ------------------------------------------------------------
+# Utilities: human and machine-friendly output formatters
+# ------------------------------------------------------------
+
+
+@t.runtime_checkable
+class SupportsToDict(t.Protocol):
+    def to_dict(self) -> dict:
+        ...
+
+
+class CustomJSONEncoder(json.JSONEncoder):
     """
     A custom JSON encoder that supports datetime objects and
     fireo.queries.query_wrapper.ReferenceDocLoader objects (since, alas,
@@ -98,65 +112,30 @@ class QIJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-def _log_qi_jsonl(qi: QueryIterator, output: t.TextIO):
-    """Log a FireO QueryIterator as JSON lines."""
-    for item in qi:
-        assert isinstance(item, Model)
-        print(json.dumps(item.to_dict(), cls=QIJSONEncoder), file=output)
+def _log_dict(d: dict, pretty: bool, output: t.TextIO):
+    """Dump a dictionary as either JSON lines or formatted JSON."""
+    print(
+        json.dumps(d, cls=CustomJSONEncoder, indent=2 if pretty else None), file=output
+    )
 
 
-def _log_model_human(item: Model, count: int, output: t.TextIO):
-    print(f"{item.key} [{count}]", file=output)
-    print(f"{'-' * len(item.key)}", file=output)
-    for key, value in item.to_dict().items():
-        if key == "key" or key == "id":
-            continue
-        if isinstance(value, datetime.datetime):
-            value = value.strftime("%A, %B %d, %Y %I:%M %p")
-        elif isinstance(value, datetime.date):
-            value = value.strftime("%A, %B %d, %Y")
-        elif isinstance(value, ReferenceDocLoader):
-            value = f"{value.field.model_ref.collection_name}/{value.ref.id}"
-        print(f"    {key}: {value}", file=output)
-
-
-def _log_i_human(i: QueryIterator, output: t.TextIO):
-    """Log a FireO QueryIterator as human readable text."""
-    count = 0
-    for row in qi:
-        assert isinstance(row, Model)
-        if count:
-            print("", file=output)
-        count += 1
-        _log_model_human(row, count, output)
-    print(f"\n{count} total rows.", file=output)
-
-
-def _log_qi(qi: QueryIterator, jsonl: bool, output: t.TextIO):
-    """Log a FireO QueryIterator as either JSON lines or human readable text."""
-    if jsonl:
-        _log_qi_jsonl(qi, output)
+def log_iterable(i: t.Iterable[SupportsToDict], pretty: bool, output: t.TextIO):
+    """Dump an iterable of SupportsToDict as either JSON lines or formatted JSON."""
+    if pretty:
+        items = list(i)
+        print(
+            json.dumps(
+                [item.to_dict() for item in items], cls=CustomJSONEncoder, indent=2
+            ),
+            file=output,
+        )
     else:
-        _log_qi_human(qi, output)
-
-
-def log_i(i: t.Iterable | QueryIterator, jsonl: bool, output: t.TextIO):
-    """Log an arbitrary iterable as either JSON lines or human readable text."""
-    if isinstance(i, QueryIterator):
-        _log_qi(i, jsonl, output)
-    #
-    # CONSIDER: what if some interior object is a QueryIterator, or a
-    # Model?
-    #
-    elif json:
         for item in i:
-            print(json.dumps(item, cls=QIJSONEncoder), file=output)
-    else:
-        print("\n".join([str(item) for item in i]), file=output)
+            _log_dict(item.to_dict(), pretty, output)
 
 
 # ------------------------------------------------------------
-# Click based CLI
+# click-based CLI options groups
 # ------------------------------------------------------------
 
 
@@ -171,11 +150,11 @@ OUTPUT_OPTIONS = [
         help="The output file to write to.",
     ),
     click.option(
-        "-j",
-        "--jsonl",
+        "-p",
+        "--pretty",
         is_flag=True,
         default=False,
-        help="Output events as JSON lines instead of human readable text.",
+        help="Indent and pretty-print the output JSON.",
     ),
 ]
 
@@ -211,6 +190,11 @@ def options_group(options: list[t.Callable]):
     return decorator
 
 
+# ------------------------------------------------------------
+# click-based CLI
+# ------------------------------------------------------------
+
+
 @click.group()
 def cdp():
     """A simple CDP data command line interface."""
@@ -219,67 +203,48 @@ def cdp():
 
 @cdp.command()
 @options_group(OUTPUT_OPTIONS)
-def instances(output: t.TextIO, jsonl: bool):
+def instances(output: t.TextIO, pretty: bool):
     """
     Print a list of available CDP instances.
 
     These can be used with the --instance (-c) option on other commands.
     """
     for name in INSTANCE_NAMES:
-        out = json.dumps({"name": name, "slug": INSTANCES[name]}) if jsonl else name
+        out = name if pretty else json.dumps({"name": name, "slug": INSTANCES[name]})
         print(out, file=output)
 
 
 @cdp.command()
 @options_group(STD_OPTIONS)
 @click.option(
-    "-d",
+    "-s",
     "--start-date",
     type=click.DateTime(),
-    default=datetime.datetime.now() - datetime.timedelta(days=7),
-    help="The start date after which to get events from.",
+    default=None,
+    required=False,
+    help="The start date at or after which to get events from.",
 )
-def sessions(
+@click.option(
+    "-e",
+    "--end-date",
+    type=click.DateTime(),
+    default=None,
+    required=False,
+    help="The end date before which to get events from.",
+)
+def events(
     instance: str,
-    start_date: datetime.datetime,
-    jsonl: bool,
+    start_date: datetime.datetime | None,
+    end_date: datetime.datetime | None,
+    pretty: bool,
     output: t.TextIO,
     **kwargs,
 ):
-    """Fetch sessions from a CDP instance."""
-    _ = connect_to_infrastructure(INSTANCES[instance])
-    sessions = cdp_models.Session.collection.filter(
-        "session_datetime", ">=", start_date
-    ).fetch()
-    log_i(sessions, jsonl, output)
-
-
-@cdp.command()
-@options_group(STD_OPTIONS)
-@click.option(
-    "--session-id",
-    type=str,
-    required=False,
-    multiple=True,
-    help="The session ID(s) to get a transcript for.",
-)
-def transcripts(
-    instance: str, session_id: list[str], input: t.TextIO, output: t.TextIO, jsonl: bool
-):
-    """Fetch transcripts from a CDP instance."""
-    _ = connect_to_infrastructure(INSTANCES[instance])
-    if not session_id:
-        session_id = [json.loads(line)["id"] for line in input.readlines()]
-    connect_to_infrastructure(INSTANCES[instance])
-    for sid in session_id:
-        session_key = f"session/{sid}"
-        transcript = cdp_models.Transcript.collection.filter(
-            session_ref=session_key
-        ).get()
-        if transcript is None:
-            print(f"No transcript found for session {sid}.", file=output)
-            continue
-        print(f"Transcript for session {sid}: {transcript}", file=output)
+    """Fetch events from a CDP instance."""
+    events = get_expanded_events_for_slug(
+        INSTANCES[instance], start_date=start_date, end_date=end_date
+    )
+    log_iterable(events, pretty, output)
 
 
 if __name__ == "__main__":
