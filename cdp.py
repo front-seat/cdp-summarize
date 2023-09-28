@@ -1,8 +1,48 @@
 #!/usr/bin/env python3
-# Path: cdp.py
+
 #
+# This is a simple command-line interface to the CDP data and infrastructure.
+#
+# It offers only a tiny bit of access, just enough to get started with
+# summarization.
+#
+# Currently, you can list available CDP instances:
+#
+#       ./cdp.py instances
+#
+# And you can get sessions from a CDP instance:
+#
+#       ./cdp.py sessions -c Seattle -d 2023-08-01
+#
+# You can set a global instance name with the CDP_INSTANCE_NAME environment
+# variable:
+#
+#       export CDP_INSTANCE_NAME=KingCounty
+#
+# or:
+#
+#       CDP_INSTANCE_NAME=Seattle ./cdp.py sessions -d 2023-08-01
+#
+# All commands can output JSON Lines files with the --jsonl (or -j) option.
+# You can use this to pipe data into other tools, like jq, or back into
+# the CLI for further processing.
+#
+# With this, you can (for example) get transcripts for a set of sessions:
+#
+#       ./cdp.py sessions -d 2023-08-01 --jsonl | ./cdp.py transcripts
+#
+# You can of course also summarize sessions, which is what we're really
+# here for:
+#
+#       ./cdp.py sessions -d 2023-08-01 --jsonl | ./cdp.py summarize
+#
+# That's about all for now. It's super early-stage code. Do we like this
+# general approach? Is it useful? Frustrating? Time will tell. :-)
+
+
 import datetime
 import json
+import os
 import sys
 import typing as t
 from inspect import getmembers
@@ -37,6 +77,7 @@ def _get_available_cdp_instances() -> dict[str, str]:
 
 INSTANCES = _get_available_cdp_instances()
 INSTANCE_NAMES = list(INSTANCES.keys())
+CDP_INSTANCE_NAME: str | None = os.getenv("CDP_INSTANCE_NAME", None)
 
 
 class QIJSONEncoder(json.JSONEncoder):
@@ -64,7 +105,7 @@ def _log_qi_jsonl(qi: QueryIterator, output: t.TextIO):
         print(json.dumps(item.to_dict(), cls=QIJSONEncoder), file=output)
 
 
-def _log_row_human(item: Model, count: int, output: t.TextIO):
+def _log_model_human(item: Model, count: int, output: t.TextIO):
     print(f"{item.key} [{count}]", file=output)
     print(f"{'-' * len(item.key)}", file=output)
     for key, value in item.to_dict().items():
@@ -79,7 +120,7 @@ def _log_row_human(item: Model, count: int, output: t.TextIO):
         print(f"    {key}: {value}", file=output)
 
 
-def _log_qi_human(qi: QueryIterator, output: t.TextIO):
+def _log_i_human(i: QueryIterator, output: t.TextIO):
     """Log a FireO QueryIterator as human readable text."""
     count = 0
     for row in qi:
@@ -87,7 +128,7 @@ def _log_qi_human(qi: QueryIterator, output: t.TextIO):
         if count:
             print("", file=output)
         count += 1
-        _log_row_human(row, count, output)
+        _log_model_human(row, count, output)
     print(f"\n{count} total rows.", file=output)
 
 
@@ -146,6 +187,7 @@ STD_OPTIONS = OUTPUT_OPTIONS + [
         "--instance",
         type=click.Choice(INSTANCE_NAMES),
         required=True,
+        default=CDP_INSTANCE_NAME,
         help="The CDP instance to get sessions for.",
     ),
     click.option(
