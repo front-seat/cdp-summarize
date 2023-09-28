@@ -69,27 +69,23 @@ class FireOAwareJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-def log_jsonl(items: t.Iterable[SupportsToDict]):
-    """Dump an iterable of SupportsToDict as JSON lines."""
-    for item in items:
-        print(json.dumps(item.to_dict(), cls=FireOAwareJSONEncoder))
-
-
-def log_json(items: t.Iterable[SupportsToDict]):
-    """Dump an arbitrary object as a pretty-printed JSON blob."""
-    print(
-        json.dumps(
-            [item.to_dict() for item in items], cls=FireOAwareJSONEncoder, indent=2
-        )
+def format_jsonl(items: t.Iterable[SupportsToDict]) -> str:
+    """Format an iterable of SupportsToDict as JSON lines."""
+    return "\n".join(
+        json.dumps(item.to_dict(), cls=FireOAwareJSONEncoder) for item in items
     )
 
 
-def log(items: t.Iterable[SupportsToDict], jsonl: bool):
-    """Dump an arbitrary object as a pretty-printed JSON blob."""
-    if jsonl:
-        log_jsonl(items)
-    else:
-        log_json(items)
+def format_json(items: t.Iterable[SupportsToDict]) -> str:
+    """Format an iterable of SupportsToDict as a pretty-printed JSON string."""
+    return json.dumps(
+        [item.to_dict() for item in items], cls=FireOAwareJSONEncoder, indent=2
+    )
+
+
+def format(items: t.Iterable[SupportsToDict], jsonl: bool) -> str:
+    """Dump an iterable of SupportsToDict."""
+    return format_jsonl(items) if jsonl else format_json(items)
 
 
 # ------------------------------------------------------------
@@ -170,7 +166,7 @@ def list(
     """Create a short list of matching events for a given CDP instance."""
     events = get_events_for_slug(INSTANCES[instance], start_date, end_date)
     if jsonl:
-        log_jsonl(events)
+        print(format_jsonl(events))
     else:
         # Make it human-readable
         for event in events:
@@ -224,7 +220,7 @@ def expand(
     events = get_expanded_events_for_slug(
         INSTANCES[instance], start_date=start_date, end_date=end_date
     )
-    log(events, jsonl)
+    print(format(events, jsonl))
 
 
 if __name__ == "__main__":
