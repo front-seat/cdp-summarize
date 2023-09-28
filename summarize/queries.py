@@ -50,17 +50,19 @@ class CDPConnection:
 
 @dataclass
 class ExpandedTranscript:
+    """A Transcript together with its related file."""
+
     transcript: cdp_models.Transcript
-    content_uri: str
+    file: cdp_models.File
 
     def to_dict(self) -> dict:
         return {
             "transcript": self.transcript.to_dict(),
-            "content_uri": self.content_uri,
+            "file": self.file.to_dict(),
         }
 
     def fetch(self, connection: CDPConnection) -> dict:
-        with connection.file_system.open(self.content_uri, "rt") as f:
+        with connection.file_system.open(self.file.uri, "rt") as f:
             content = json.load(f)
         return content
 
@@ -212,10 +214,11 @@ def expand_transcript(
 ) -> ExpandedTranscript | None:
     if not transcript:
         return None
-    file_ref = transcript.file_ref.get()  # type: ignore
     return ExpandedTranscript(
         transcript=transcript,
-        content_uri=file_ref.uri,
+        file=t.cast(
+            cdp_models.File, t.cast(ReferenceDocLoader, transcript.file_ref).get()
+        ),
     )
 
 

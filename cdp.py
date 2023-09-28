@@ -1,54 +1,9 @@
 #!/usr/bin/env python3
 
-#
-# This is a simple command-line interface to the CDP data and infrastructure.
-#
-# It offers only a tiny bit of access, just enough to get started with
-# summarization.
-#
-# Currently, you can list available CDP instances:
-#
-#       ./cdp.py instances
-#
-# And you can get events from a CDP instance between given dates:
-#
-#       ./cdp.py events -c Seattle -s 2023-08-01 -e 2023-08-15
-#
-# Events are *expanded* to include their related sessions and other
-# relevant data for summarization, including transcripts, matters, and
-# matter files.
-#
-# You can set a global instance name with the CDP_INSTANCE_NAME environment
-# variable:
-#
-#       export CDP_INSTANCE_NAME=KingCounty
-#
-# or:
-#
-#       CDP_INSTANCE_NAME=Seattle ./cdp.py events -s 2023-08-01
-#
-# By default all commands output JSON lines data. That said, you can
-# pretty print it with --pretty (or -p):
-#
-#       ./cdp.py events -d 2023-08-01 --pretty
-#
-# It's not *that* pretty, but hey.
-#
-# You can use default JSON Lines to pipe data into other tools, like jq, or
-# back into the CLI for further processing.
-#
-# With this, you can (for example) summarize events:
-#
-#       ./cdp.py events -d 2023-08-01 | ./cdp.py summarize
-#
-# That's about all for now. It's super early-stage code. Do we like this
-# general approach? Is it useful? Frustrating? Time will tell. :-)
-
 
 import datetime
 import json
 import os
-import sys
 import typing as t
 from inspect import getmembers
 
@@ -56,10 +11,10 @@ import click
 from cdp_data import CDPInstances
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
-from summarize.queries import get_expanded_events_for_slug
+from summarize.queries import get_events_for_slug, get_expanded_events_for_slug
 
 # ------------------------------------------------------------
-# Utilities: infrastructure names and slugs
+# Utilities
 # ------------------------------------------------------------
 
 
@@ -83,18 +38,20 @@ INSTANCE_NAMES = list(INSTANCES.keys())
 CDP_INSTANCE_NAME: str | None = os.getenv("CDP_INSTANCE_NAME", None)
 
 
+FRIENDLY_DT_FORMAT = "%a %b %-d, %Y @ %-I:%M%p"
+
+
 # ------------------------------------------------------------
 # Utilities: human and machine-friendly output formatters
 # ------------------------------------------------------------
 
 
-@t.runtime_checkable
 class SupportsToDict(t.Protocol):
     def to_dict(self) -> dict:
         ...
 
 
-class CustomJSONEncoder(json.JSONEncoder):
+class FireOAwareJSONEncoder(json.JSONEncoder):
     """
     A custom JSON encoder that supports datetime objects and
     fireo.queries.query_wrapper.ReferenceDocLoader objects (since, alas,
@@ -112,86 +69,31 @@ class CustomJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-def _log_dict(d: dict, pretty: bool, output: t.TextIO):
-    """Dump a dictionary as either JSON lines or formatted JSON."""
+def log_jsonl(items: t.Iterable[SupportsToDict]):
+    """Dump an iterable of SupportsToDict as JSON lines."""
+    for item in items:
+        print(json.dumps(item.to_dict(), cls=FireOAwareJSONEncoder))
+
+
+def log_json(items: t.Iterable[SupportsToDict]):
+    """Dump an arbitrary object as a pretty-printed JSON blob."""
     print(
-        json.dumps(d, cls=CustomJSONEncoder, indent=2 if pretty else None), file=output
+        json.dumps(
+            [item.to_dict() for item in items], cls=FireOAwareJSONEncoder, indent=2
+        )
     )
 
 
-def log_iterable(i: t.Iterable[SupportsToDict], pretty: bool, output: t.TextIO):
-    """Dump an iterable of SupportsToDict as either JSON lines or formatted JSON."""
-    if pretty:
-        items = list(i)
-        print(
-            json.dumps(
-                [item.to_dict() for item in items], cls=CustomJSONEncoder, indent=2
-            ),
-            file=output,
-        )
+def log(items: t.Iterable[SupportsToDict], jsonl: bool):
+    """Dump an arbitrary object as a pretty-printed JSON blob."""
+    if jsonl:
+        log_jsonl(items)
     else:
-        for item in i:
-            _log_dict(item.to_dict(), pretty, output)
+        log_json(items)
 
 
 # ------------------------------------------------------------
-# click-based CLI options groups
-# ------------------------------------------------------------
-
-
-# CLI options that apply to all sub-commands that output data.
-# That's, uh, all of them!
-OUTPUT_OPTIONS = [
-    click.option(
-        "-o",
-        "--output",
-        type=click.File("wt"),
-        default=sys.stdout,
-        help="The output file to write to.",
-    ),
-    click.option(
-        "-p",
-        "--pretty",
-        is_flag=True,
-        default=False,
-        help="Indent and pretty-print the output JSON.",
-    ),
-]
-
-# CLI options that apply to all sub-commands that consume and output data.
-# That's, uh, most of them!
-STD_OPTIONS = OUTPUT_OPTIONS + [
-    click.option(
-        "-c",
-        "--instance",
-        type=click.Choice(INSTANCE_NAMES),
-        required=True,
-        default=CDP_INSTANCE_NAME,
-        help="The CDP instance to get sessions for.",
-    ),
-    click.option(
-        "-i",
-        "--input",
-        type=click.File("rt"),
-        default=sys.stdin,
-        help="The input file to read from.",
-    ),
-]
-
-
-def options_group(options: list[t.Callable]):
-    """A decorator to add a group of options to a command."""
-
-    def decorator(func):
-        for option in reversed(options):
-            func = option(func)
-        return func
-
-    return decorator
-
-
-# ------------------------------------------------------------
-# click-based CLI
+# Click CLI
 # ------------------------------------------------------------
 
 
@@ -202,20 +104,46 @@ def cdp():
 
 
 @cdp.command()
-@options_group(OUTPUT_OPTIONS)
-def instances(output: t.TextIO, pretty: bool):
+@click.option(
+    "-j",
+    "--jsonl",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Output as JSON lines instead of formatted JSON.",
+)
+def instances(jsonl: bool):
     """
     Print a list of available CDP instances.
 
-    These can be used with the --instance (-c) option on other commands.
+    These can be used with the --instance (-i) option on other commands.
     """
     for name in INSTANCE_NAMES:
-        out = name if pretty else json.dumps({"name": name, "slug": INSTANCES[name]})
-        print(out, file=output)
+        print(json.dumps({"name": name, "slug": INSTANCES[name]}) if jsonl else name)
 
 
-@cdp.command()
-@options_group(STD_OPTIONS)
+@cdp.group()
+def events():
+    """Fetch events from a CDP instance."""
+    pass
+
+
+@events.command()
+@click.option(
+    "-i",
+    "--instance",
+    type=click.Choice(INSTANCE_NAMES),
+    required=True,
+    help='The CDP instance name (like "Seattle") to fetch events from.',
+)
+@click.option(
+    "-j",
+    "--jsonl",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Output as JSON lines.",
+)
 @click.option(
     "-s",
     "--start-date",
@@ -232,19 +160,71 @@ def instances(output: t.TextIO, pretty: bool):
     required=False,
     help="The end date before which to get events from.",
 )
-def events(
+def list(
     instance: str,
     start_date: datetime.datetime | None,
     end_date: datetime.datetime | None,
-    pretty: bool,
-    output: t.TextIO,
+    jsonl: bool,
     **kwargs,
 ):
-    """Fetch events from a CDP instance."""
+    """Create a short list of matching events for a given CDP instance."""
+    events = get_events_for_slug(INSTANCES[instance], start_date, end_date)
+    if jsonl:
+        log_jsonl(events)
+    else:
+        # Make it human-readable
+        for event in events:
+            event_dt_local = t.cast(
+                datetime.datetime, event.event_datetime
+            ).astimezone()
+            event_dt_format = event_dt_local.strftime(FRIENDLY_DT_FORMAT)
+            print(f"{event.id} {event_dt_format}")
+
+
+@events.command()
+@click.option(
+    "-i",
+    "--instance",
+    type=click.Choice(INSTANCE_NAMES),
+    required=True,
+    help='The CDP instance name (like "Seattle") to fetch events from.',
+)
+@click.option(
+    "-j",
+    "--jsonl",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Output as JSON lines.",
+)
+@click.option(
+    "-s",
+    "--start-date",
+    type=click.DateTime(),
+    default=None,
+    required=False,
+    help="The start date at or after which to get events from.",
+)
+@click.option(
+    "-e",
+    "--end-date",
+    type=click.DateTime(),
+    default=None,
+    required=False,
+    help="The end date before which to get events from.",
+)
+def expand(
+    instance: str,
+    start_date: datetime.datetime | None,
+    end_date: datetime.datetime | None,
+    jsonl: bool,
+    **kwargs,
+):
+    """Fetch and expand events from a CDP instance."""
     events = get_expanded_events_for_slug(
         INSTANCES[instance], start_date=start_date, end_date=end_date
     )
-    log_iterable(events, pretty, output)
+    log(events, jsonl)
 
 
 if __name__ == "__main__":
