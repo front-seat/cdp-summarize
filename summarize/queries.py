@@ -1,9 +1,9 @@
 import datetime
 import json
 import typing as t
+import urllib.request
 from dataclasses import dataclass
 
-import urllib3
 from cdp_backend.database import models as cdp_models
 from cdp_data.utils import connect_to_infrastructure
 from fireo.queries.query_wrapper import ReferenceDocLoader
@@ -88,11 +88,11 @@ class ExpandedMatter:
 
         Return both its reported content-type and its content.
         """
-        response = urllib3.request("GET", t.cast(str, file.uri))
-        return (
-            response.headers.get("content-type", "application/octet-stream"),
-            response.data,
-        )
+        with urllib.request.urlopen(t.cast(str, file.uri)) as response:
+            return (
+                response.headers.get("content-type", "application/octet-stream"),
+                response.read(),
+            )
 
 
 @dataclass

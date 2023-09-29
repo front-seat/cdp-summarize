@@ -12,6 +12,7 @@ from cdp_data import CDPInstances
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
 from summarize.queries import get_events_for_slug, get_expanded_events_for_slug
+from summarize.summarizer import summarize_expanded_event
 
 # ------------------------------------------------------------
 # Utilities
@@ -229,6 +230,69 @@ def expand(
         INSTANCES[instance], start_date, end_date, list(event_ids)
     )
     print(format(events, jsonl))
+
+
+@events.command()
+@click.option(
+    "-i",
+    "--instance",
+    type=click.Choice(INSTANCE_NAMES),
+    required=True,
+    help='The CDP instance name (like "Seattle") to fetch events from.',
+)
+@click.option(
+    "-j",
+    "--jsonl",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Output as JSON lines.",
+)
+@click.option(
+    "-s",
+    "--start-date",
+    type=click.DateTime(),
+    default=None,
+    required=False,
+    help="The start date at or after which to get events from.",
+)
+@click.option(
+    "-e",
+    "--end-date",
+    type=click.DateTime(),
+    default=None,
+    required=False,
+    help="The end date before which to get events from.",
+)
+@click.option(
+    "--id",
+    "event_ids",
+    multiple=True,
+    required=False,
+    help="The ID of an event (or events) to expand.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Log summarization progress to stderr.",
+)
+def summarize(
+    instance: str,
+    event_ids: tuple,
+    start_date: datetime.datetime | None,
+    end_date: datetime.datetime | None,
+    jsonl: bool,
+    verbose: bool,
+    **kwargs,
+):
+    """Fetch and summarize events from a CDP instance."""
+    events = get_expanded_events_for_slug(
+        INSTANCES[instance], start_date, end_date, list(event_ids)
+    )
+    summaries = (summarize_expanded_event(event, verbose) for event in events)
+    print(format(summaries, jsonl))
 
 
 if __name__ == "__main__":
