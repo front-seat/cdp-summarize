@@ -1,3 +1,5 @@
+import typing as t
+
 from cdp_data.utils import connect_to_infrastructure
 from gcsfs import GCSFileSystem
 

@@ -1,6 +1,8 @@
 import datetime
 import json
+import logging
 import typing as t
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
@@ -8,6 +10,8 @@ from cdp_backend.database import models as cdp_models
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
 from .connection import CDPConnection
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------
 # Expanded "Models"
@@ -26,6 +30,14 @@ class ExpandedTranscript:
     transcript: cdp_models.Transcript
     file: cdp_models.File
 
+    def __post_init__(self):
+        """Validate our content."""
+        file_scheme = urllib.parse.urlparse(t.cast(str, self.file.uri)).scheme
+        if file_scheme != "gs":
+            raise ValueError(
+                f"Transcript file URI scheme must be gs:// not {file_scheme}"
+            )
+
     def to_dict(self) -> dict:
         return {
             "transcript": self.transcript.to_dict(),
@@ -33,6 +45,7 @@ class ExpandedTranscript:
         }
 
     def get_data(self, connection: CDPConnection) -> dict:
+        logger.info("Fetching transcript data from %s", self.file.uri)
         with connection.file_system.open(self.file.uri, "rt") as f:
             data = json.load(f)
         return data
@@ -44,6 +57,15 @@ class ExpandedMatter:
 
     matter: cdp_models.Matter
     files: list[cdp_models.MatterFile]
+
+    def __post_init__(self):
+        """Validate our content."""
+        for file in self.files:
+            file_scheme = urllib.parse.urlparse(t.cast(str, file.uri)).scheme
+            if file_scheme not in ("http", "https"):
+                raise ValueError(
+                    f"Matter file URI scheme must be https?:// not {file_scheme}"
+                )
 
     def to_dict(self) -> dict:
         return {
@@ -59,6 +81,7 @@ class ExpandedMatter:
 
         Return both its reported content-type and its content.
         """
+        logger.info("Fetching matter file data from %s", file.uri)
         with urllib.request.urlopen(t.cast(str, file.uri)) as response:
             return (
                 response.headers.get("content-type", "application/octet-stream"),
@@ -85,12 +108,16 @@ class ExpandedEvent:
     """An event together with its related sessions and matters."""
 
     event: cdp_models.Event
+    body_name: str
+    dt: datetime.datetime
     sessions: list[ExpandedSession]
     matters: list[ExpandedMatter]
 
     def to_dict(self) -> dict:
         return {
             "event": self.event.to_dict(),
+            "body_name": self.body_name,
+            "dt": self.dt.isoformat(),
             "sessions": [session.to_dict() for session in self.sessions],
             "matters": [matter.to_dict() for matter in self.matters],
         }
@@ -112,9 +139,11 @@ def expand_event(
         .fetch()
     )
     matters = matters_for_event(event)
-
+    body = t.cast(cdp_models.Body, t.cast(ReferenceDocLoader, event.body_ref).get())
     return ExpandedEvent(
         event=event,
+        body_name=t.cast(str, body.name),
+        dt=t.cast(datetime.datetime, event.event_datetime),
         sessions=[
             expand_session(connection, t.cast(cdp_models.Session, session))
             for session in sessions
