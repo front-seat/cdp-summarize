@@ -3,6 +3,7 @@
 
 import datetime
 import json
+import logging
 import os
 import typing as t
 from inspect import getmembers
@@ -11,8 +12,9 @@ import click
 from cdp_data import CDPInstances
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
+from summarize.connection import CDPConnection
 from summarize.queries import get_events_for_slug, get_expanded_events_for_slug
-from summarize.summarizer import summarize_expanded_event
+from summarize.summaries import summarize_expanded_event
 
 # ------------------------------------------------------------
 # Utilities
@@ -288,10 +290,14 @@ def summarize(
     **kwargs,
 ):
     """Fetch and summarize events from a CDP instance."""
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    connection = CDPConnection.connect(INSTANCES[instance])
     events = get_expanded_events_for_slug(
         INSTANCES[instance], start_date, end_date, list(event_ids)
     )
-    summaries = (summarize_expanded_event(event, verbose) for event in events)
+    summaries = (summarize_expanded_event(connection, event) for event in events)
     print(format(summaries, jsonl))
 
 

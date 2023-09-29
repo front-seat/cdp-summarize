@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 cdp-data = "*"
 langchain = "*"
+docx2txt = "*"
+pdfplumber = "*"
 
 [dev-packages]
 black = "*"

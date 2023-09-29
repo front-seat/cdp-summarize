@@ -5,38 +5,9 @@ import urllib.request
 from dataclasses import dataclass
 
 from cdp_backend.database import models as cdp_models
-from cdp_data.utils import connect_to_infrastructure
 from fireo.queries.query_wrapper import ReferenceDocLoader
-from gcsfs import GCSFileSystem
 
-# ------------------------------------------------------------
-# Utilities
-# ------------------------------------------------------------
-
-
-class CDPConnection:
-    """
-    Represents an active connection to CDP infrastructure.
-
-    This is a bit awkward because FireO seems to assume one global connection:
-    if you call `connect()` multiple times, you'll need to drop your old
-    connection instances.
-
-    (REVISIT. Maybe there's a nice way to say 'run your query on *this*
-    specific connection' with FireO?)
-    """
-
-    infrastructure_slug: str
-    file_system: GCSFileSystem
-
-    def __init__(self, infrastructure_slug: str, file_system: GCSFileSystem):
-        self.infrastructure_slug = infrastructure_slug
-        self.file_system = file_system
-
-    @classmethod
-    def connect(cls, infrastructure_slug: str) -> t.Self:
-        return cls(infrastructure_slug, connect_to_infrastructure(infrastructure_slug))
-
+from .connection import CDPConnection
 
 # ------------------------------------------------------------
 # Expanded "Models"
@@ -61,10 +32,10 @@ class ExpandedTranscript:
             "file": self.file.to_dict(),
         }
 
-    def fetch(self, connection: CDPConnection) -> dict:
+    def get_data(self, connection: CDPConnection) -> dict:
         with connection.file_system.open(self.file.uri, "rt") as f:
-            content = json.load(f)
-        return content
+            data = json.load(f)
+        return data
 
 
 @dataclass
@@ -80,7 +51,7 @@ class ExpandedMatter:
             "files": [file.to_dict() for file in self.files],
         }
 
-    def fetch_file(
+    def get_file(
         self, connection: CDPConnection, file: cdp_models.MatterFile
     ) -> tuple[str, bytes]:
         """

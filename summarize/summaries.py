@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from cdp_backend.database import models as cdp_models
 
+from .connection import CDPConnection
 from .queries import ExpandedEvent, ExpandedMatter, ExpandedSession, ExpandedTranscript
 
 # ------------------------------------------------------------
@@ -104,8 +105,11 @@ class EventSummary(SummaryBase):
 
 
 def summarize_matter_file(
-    matter_file: cdp_models.MatterFile, verbose: bool = False
+    connection: CDPConnection,
+    expanded_matter: ExpandedMatter,
+    matter_file: cdp_models.MatterFile,
 ) -> MatterFileSummary:
+    content_type, bytes = expanded_matter.get_file(connection, matter_file)
     return MatterFileSummary(
         key=matter_file.key,
         headline="TODO",
@@ -116,10 +120,11 @@ def summarize_matter_file(
 
 
 def summarize_expanded_matter(
-    expanded_matter: ExpandedMatter, verbose: bool = False
+    connection: CDPConnection, expanded_matter: ExpandedMatter
 ) -> MatterSummary:
     matter_file_summaries = tuple(
-        summarize_matter_file(matter_file) for matter_file in expanded_matter.files
+        summarize_matter_file(connection, expanded_matter, matter_file)
+        for matter_file in expanded_matter.files
     )
     return MatterSummary(
         key=expanded_matter.matter.key,
@@ -131,8 +136,10 @@ def summarize_expanded_matter(
 
 
 def summarize_expanded_transcript(
-    expanded_transcript: ExpandedTranscript, verbose: bool = False
+    connection: CDPConnection,
+    expanded_transcript: ExpandedTranscript,
 ) -> TranscriptSummary:
+    expanded_transcript.get_data(connection)
     return TranscriptSummary(
         key=expanded_transcript.transcript.key,
         headline="TODO",
@@ -143,11 +150,11 @@ def summarize_expanded_transcript(
 
 
 def summarize_expanded_session(
-    expanded_session: ExpandedSession, verbose: bool = False
+    connection: CDPConnection, expanded_session: ExpandedSession
 ) -> SessionSummary:
     transcript = expanded_session.transcript
     transcript_summary = (
-        summarize_expanded_transcript(transcript) if transcript else None
+        summarize_expanded_transcript(connection, transcript) if transcript else None
     )
     return SessionSummary(
         key=expanded_session.session.key,
@@ -159,14 +166,16 @@ def summarize_expanded_session(
 
 
 def summarize_expanded_event(
-    expanded_event: ExpandedEvent, verbose: bool = False
+    connection: CDPConnection, expanded_event: ExpandedEvent
 ) -> EventSummary:
     """Summarize an expanded event."""
     matter_summaries = tuple(
-        summarize_expanded_matter(matter) for matter in expanded_event.matters
+        summarize_expanded_matter(connection, matter)
+        for matter in expanded_event.matters
     )
     session_summaries = tuple(
-        summarize_expanded_session(session) for session in expanded_event.sessions
+        summarize_expanded_session(connection, session)
+        for session in expanded_event.sessions
     )
     return EventSummary(
         key=expanded_event.event.key,
