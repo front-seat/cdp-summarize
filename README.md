@@ -95,10 +95,6 @@ This is the main event! Much like the `expand` subcommand, you can summarize an 
 ...
 ```
 
-Every item is summarized with both a short `headline` and a paragraph-link `detail`. The returned data structure contains summary roll-ups at every level.
-
-See the [example summary output](./example-summary.json) for details.
-
 Summarization can take a while. You can turn on verbose output (to `stderr`) with `--verbose`.
 
 ```
@@ -106,3 +102,13 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
+
+## Summary output
+
+Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in `summarize/summaries.py`.
+
+Every item is summarized with both a short `headline` and a paragraph-link `detail`. The returned data structure contains summary roll-ups at every level.
+
+In addition, every item contains the summarized `text`, primarily for debugging/development purposes.
+
+See an [example summary output](./example-summary.json) for details.
