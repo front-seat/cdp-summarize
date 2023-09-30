@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import typing as t
 import urllib.parse
@@ -7,6 +6,7 @@ import urllib.request
 from dataclasses import dataclass
 
 from cdp_backend.database import models as cdp_models
+from cdp_backend.pipeline import transcript_model
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
 from .connection import CDPConnection
@@ -30,7 +30,7 @@ class ExpandedTranscript:
     transcript: cdp_models.Transcript
     file: cdp_models.File
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate our content."""
         file_scheme = urllib.parse.urlparse(t.cast(str, self.file.uri)).scheme
         if file_scheme != "gs":
@@ -39,16 +39,20 @@ class ExpandedTranscript:
             )
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             "transcript": self.transcript.to_dict(),
             "file": self.file.to_dict(),
         }
 
-    def get_data(self, connection: CDPConnection) -> dict:
+    def get_transcript_model(
+        self, connection: CDPConnection
+    ) -> transcript_model.Transcript:
+        """Fetch the transcript data from the web and return a PipelineTranscript."""
         logger.info("Fetching transcript data from %s", self.file.uri)
         with connection.file_system.open(self.file.uri, "rt") as f:
-            data = json.load(f)
-        return data
+            model = transcript_model.Transcript.from_json(f.read())
+        return model
 
 
 @dataclass
@@ -58,7 +62,7 @@ class ExpandedMatter:
     matter: cdp_models.Matter
     files: list[cdp_models.MatterFile]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate our content."""
         for file in self.files:
             file_scheme = urllib.parse.urlparse(t.cast(str, file.uri)).scheme
@@ -68,6 +72,7 @@ class ExpandedMatter:
                 )
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             "matter": self.matter.to_dict(),
             "files": [file.to_dict() for file in self.files],
@@ -97,6 +102,7 @@ class ExpandedSession:
     transcript: ExpandedTranscript | None
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             "session": self.session.to_dict(),
             "transcript": self.transcript.to_dict() if self.transcript else None,
@@ -114,6 +120,7 @@ class ExpandedEvent:
     matters: list[ExpandedMatter]
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             "event": self.event.to_dict(),
             "body_name": self.body_name,

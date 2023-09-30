@@ -9,16 +9,12 @@ def _strip_surrounding_quotes(s: str) -> str:
 
 
 def mime_type_from_content_type(content_type: str) -> str:
-    """
-    Return the MIME type from a Content-Type header value.
-    """
+    """Return the MIME type from a Content-Type header value."""
     return content_type.split(";")[0].strip().lower()
 
 
 def charset_from_content_type(content_type: str) -> str | None:
-    """
-    Return the charset from a Content-Type header value, if appropriate.
-    """
+    """Return the charset from a Content-Type header value, if appropriate."""
     for part in content_type.split(";"):
         if part.strip().lower().startswith("charset="):
             charset = part.strip().split("=")[1].strip().lower()
@@ -28,9 +24,7 @@ def charset_from_content_type(content_type: str) -> str | None:
 
 
 def split_content_type(content_type: str) -> tuple[str, str | None]:
-    """
-    Break a Content-Type header value into its MIME type and charset components.
-    """
+    """Break a Content-Type header value into its MIME type and charset components."""
     mime_type = mime_type_from_content_type(content_type)
     charset = charset_from_content_type(content_type)
     return mime_type, charset

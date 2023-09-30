@@ -26,7 +26,6 @@ class SummarizationError(Exception):
 class SummarizationResult:
     headline: str
     detail: str
-    text: str
 
 
 def _make_langchain_prompt(
@@ -34,8 +33,7 @@ def _make_langchain_prompt(
     context: dict[str, t.Any] | None = None,
     input_variables: tuple[str] = ("text",),
 ) -> PromptTemplate:
-    """
-    Given a python-style format string, render it into a final prompt string.
+    """Given a python-style format string, render it into a final prompt string.
     From there, wrap it in a LangChain PromptTemplate instance.
     """
     # Deal with missing context.
@@ -49,13 +47,13 @@ def _make_langchain_prompt(
     )
 
 
+SEPARATORS = ["\n\n", "\n", ". "]
+
+
 def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
-    """
-    Attempt to split text into chunks of at most `chunk_size`.
-    """
+    """Attempt to split text into chunks of at most `chunk_size`."""
     # We try to split the text in a few different ways. If we're lucky, one
     # of them will yield chunks entirely of size <= `chunk_size`.
-    SEPARATORS = ["\n\n", "\n", ". "]
 
     texts = []
     for separator in SEPARATORS:
@@ -81,8 +79,7 @@ def _summarize_langchain_llm(
     context: dict[str, t.Any] | None = None,
     chunk_size: int = 3584,
 ) -> SummarizationResult:
-    """
-    Summarize text using langchain.
+    """Summarize text using langchain.
 
     We want to produce both a "headline" summary and a "detail" summary,
     so we do a little extra work to re-use intermediate steps so as to keep
@@ -154,7 +151,7 @@ def _summarize_langchain_llm(
     headline = headline_outputs["output_text"]
 
     # We did it!
-    return SummarizationResult(headline=headline, detail=detail, text=text)
+    return SummarizationResult(headline=headline, detail=detail)
 
 
 def summarize_openai(
@@ -171,7 +168,7 @@ def summarize_openai(
         raise RuntimeError("OPENAI_API_KEY is not set.")
     llm = ChatOpenAI(
         temperature=temperature,
-        model_name=model_name,  # type: ignore -- busted type hints, alas
+        model_name=model_name,  # type: ignore
         openai_api_key=OPENAI_API_KEY,
         openai_organization=OPENAI_ORGANIZATION,
     )

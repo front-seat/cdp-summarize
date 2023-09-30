@@ -2,6 +2,7 @@ import io
 
 import docx2txt
 import pdfplumber
+from cdp_backend.pipeline import transcript_model
 
 from .mime import split_content_type
 
@@ -12,7 +13,7 @@ from .mime import split_content_type
 # revisiting the whole question in the future.
 
 
-def _truncate_str(s: str, length: int):
+def _truncate_str(s: str, length: int) -> str:
     return s[:length] + "..." if len(s) > length else s
 
 
@@ -120,7 +121,7 @@ def _clean_pdf(text: str) -> str:
 
 
 def _extract_text(io: io.BytesIO, charset: str | None) -> str:
-    """Extract text from a text document. Piece of cake!"""
+    """Extract text from a text document. Piece of cake!."""
     data = io.read()
     return data.decode(charset or "utf-8")
 
@@ -169,12 +170,6 @@ def extract_text_from_bytes(io: io.BytesIO, content_type: str) -> str:
         raise ValueError(f"Currently unsupported MIME type {mime_type}.")
 
 
-def extract_text_from_transcript(data: dict) -> str:
-    """
-    Given a CDP transcript data dictionary, return its text.
-
-    We assume a specific schema that seems present in the transcripts we've
-    looked at so far.
-    """
-    sentences = data.get("sentences", [])
-    return "\n\n".join(sentence.get("text", "") for sentence in sentences)
+def extract_text_from_transcript_model(tm: transcript_model.Transcript) -> str:
+    """Return the text of a CDP transcript model."""
+    return "\n\n".join(sentence.text for sentence in tm.sentences)

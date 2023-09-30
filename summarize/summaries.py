@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from cdp_backend.database import models as cdp_models
 
 from .connection import CDPConnection
-from .extract import extract_text_from_bytes, extract_text_from_transcript
+from .extract import extract_text_from_bytes, extract_text_from_transcript_model
 from .llm import SummarizationResult, summarize_openai
 from .queries import ExpandedEvent, ExpandedMatter, ExpandedSession, ExpandedTranscript
 
@@ -33,14 +33,13 @@ class SummaryBase:
     key: str
     headline: str
     detail: str
-    text: str
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             "key": self.key,
             "headline": self.headline,
             "detail": self.detail,
-            "text": self.text,
         }
 
 
@@ -49,6 +48,7 @@ class MatterFileSummary(SummaryBase):
     uri: str
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             **super().to_dict(),
             "uri": self.uri,
@@ -60,6 +60,7 @@ class MatterSummary(SummaryBase):
     matter_file_summaries: tuple[MatterFileSummary, ...]
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             **super().to_dict(),
             "matter_file_summaries": [
@@ -73,6 +74,7 @@ class TranscriptSummary(SummaryBase):
     uri: str
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             **super().to_dict(),
             "uri": self.uri,
@@ -84,6 +86,7 @@ class SessionSummary(SummaryBase):
     transcript_summary: TranscriptSummary | None
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             **super().to_dict(),
             "transcript_summary": self.transcript_summary.to_dict()
@@ -99,6 +102,7 @@ class EventSummary(SummaryBase):
     session_summaries: tuple[SessionSummary, ...]
 
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         return {
             **super().to_dict(),
             "dt": self.dt.isoformat(),
@@ -227,20 +231,19 @@ def summarize_matter_file(
     On failure, return a summary with warning text (allowing further
     summarization to continue).
     """
-    text = ""
     try:
         logger.info(
             "matter %s file %s :: downloading ",
             expanded_matter.matter.key,
             matter_file.key,
         )
-        content_type, bytes = expanded_matter.get_file(connection, matter_file)
+        content_type, data = expanded_matter.get_file(connection, matter_file)
         logger.info(
             "matter %s file %s :: extracting",
             expanded_matter.matter.key,
             matter_file.key,
         )
-        text = extract_text_from_bytes(io.BytesIO(bytes), content_type)
+        text = extract_text_from_bytes(io.BytesIO(data), content_type)
         logger.info(
             "matter %s file %s :: summarizing",
             expanded_matter.matter.key,
@@ -253,22 +256,13 @@ def summarize_matter_file(
             key=matter_file.key,
             headline="Failed to summarize",
             detail=str(e),
-            text=text,
             uri=t.cast(str, matter_file.uri),
         )
     else:
-        logger.info(
-            "matter %s file %s :: summarized:\n\tHeadline: %s\n\tDetail: %s",
-            expanded_matter.matter.key,
-            matter_file.key,
-            result.headline,
-            result.detail,
-        )
         return MatterFileSummary(
             key=matter_file.key,
             headline=result.headline,
             detail=result.detail,
-            text=result.text,
             uri=t.cast(str, matter_file.uri),
         )
 
@@ -283,7 +277,6 @@ def summarize_expanded_matter(
     On failure, return a summary with warning text (allowing further
     summarization to continue).
     """
-
     matter_file_summaries = tuple(
         summarize_matter_file(connection, expanded_matter, matter_file)
         for matter_file in expanded_matter.files
@@ -300,7 +293,6 @@ def summarize_expanded_matter(
             key=expanded_matter.matter.key,
             headline="Failed to summarize",
             detail=str(e),
-            text=text,
             matter_file_summaries=matter_file_summaries,
         )
     else:
@@ -308,7 +300,6 @@ def summarize_expanded_matter(
             key=expanded_matter.matter.key,
             headline=result.headline,
             detail=result.detail,
-            text=text,
             matter_file_summaries=matter_file_summaries,
         )
 
@@ -323,12 +314,11 @@ def summarize_expanded_transcript(
     On failure, return a summary with warning text (allowing further
     summarization to continue).
     """
-    text = ""
     try:
         logger.info("transcript %s :: downloading ", expanded_transcript.transcript.key)
-        data = expanded_transcript.get_data(connection)
+        tm = expanded_transcript.get_transcript_model(connection)
         logger.info("transcript %s :: extracting", expanded_transcript.transcript.key)
-        text = extract_text_from_transcript(data)
+        text = extract_text_from_transcript_model(tm)
         logger.info("transcript %s :: summarizing", expanded_transcript.transcript.key)
         result = summarize_transcript(text)
     except Exception as e:
@@ -339,21 +329,13 @@ def summarize_expanded_transcript(
             key=expanded_transcript.transcript.key,
             headline="Failed to summarize",
             detail=str(e),
-            text=text,
             uri=t.cast(str, expanded_transcript.file.uri),
         )
     else:
-        logger.info(
-            "transcript %s :: summarized:\n\tHeadline: %s\n\tDetail: %s",
-            expanded_transcript.transcript.key,
-            result.headline,
-            result.detail,
-        )
         return TranscriptSummary(
             key=expanded_transcript.transcript.key,
             headline=result.headline,
             detail=result.detail,
-            text=text,
             uri=t.cast(str, expanded_transcript.file.uri),
         )
 
@@ -362,7 +344,6 @@ def summarize_expanded_session(
     connection: CDPConnection, expanded_session: ExpandedSession
 ) -> SessionSummary:
     """Summarize an expanded session by summarizing its transcript."""
-
     transcript = expanded_session.transcript
     transcript_summary = (
         summarize_expanded_transcript(connection, transcript) if transcript else None
@@ -375,7 +356,6 @@ def summarize_expanded_session(
         if transcript_summary
         else "Session has no transcript",
         detail=transcript_summary.detail if transcript_summary else "",
-        text=transcript_summary.text if transcript_summary else "",
         transcript_summary=transcript_summary,
     )
 
@@ -413,7 +393,6 @@ def summarize_expanded_event(
             key=expanded_event.event.key,
             headline="Failed to summarize",
             detail=str(e),
-            text=text,
             dt=expanded_event.dt,
             matter_summaries=matter_summaries,
             session_summaries=session_summaries,
@@ -423,7 +402,6 @@ def summarize_expanded_event(
             key=expanded_event.event.key,
             headline=result.headline,
             detail=result.detail,
-            text=text,
             dt=expanded_event.dt,
             matter_summaries=matter_summaries,
             session_summaries=session_summaries,

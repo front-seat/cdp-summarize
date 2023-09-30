@@ -8,25 +8,34 @@ This documentation is early stage, too. :-)
 
 ### Your dev machine
 
-This is a Python 3.11 project that uses [Pipenv](https://pipenv.pypa.io/en/latest/) to manage dependencies.
+Install Python 3.11.x.
 
-For now, you'll want to clone this repository and `pipenv install --dev` to get set up.
+Then install dependencies and dev dependencies:
+
+```console
+> python3 -m venv .venv
+> source .venv/bin/activate
+> pip install -r requirements.txt
+> pip install -r requirements-dev.txt
+```
 
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 ### OpenAI
 
-You'll need an OpenAI API key to use this project. You can get one at https://beta.openai.com/. Before running `./cdp.py summarize ...`, you'll need to set the `OPENAI_API_KEY` environment variable to your API key.
+Get an OpenAI API key at https://platform.openai.com/.
+
+Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`
 
 ## `cdp.py` command-line
 
-This is the main command-line tool for this project. It's a Python script that uses [Click](https://click.palletsprojects.com/en/8.0.x/) to manage subcommands.
+This is the main command-line tool for this project.
 
 You can run `./cdp.py --help` to see the available subcommands.
 
 ### Getting available CDP instances
 
-You'll probably want to start by running `./cdp.py list` to see the available CDP instances:
+You'll probably want to start by running `./cdp.py list` to see the available CDP instance names:
 
 ```console
 > ./cdp.py instances
@@ -108,7 +117,5 @@ The `--id` and `--start-date`/`--end-date` filters are available here, too.
 Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in `summarize/summaries.py`.
 
 Every item is summarized with both a short `headline` and a paragraph-link `detail`. The returned data structure contains summary roll-ups at every level.
-
-In addition, every item contains the summarized `text`, primarily for debugging/development purposes.
 
 See an [example summary output](./example-summary.json) for details.

@@ -24,4 +24,5 @@ class CDPConnection:
 
     @classmethod
     def connect(cls, infrastructure_slug: str) -> t.Self:
+        """Connect to the given CDP infrastructure, returning a valid CDPConnection."""
         return cls(infrastructure_slug, connect_to_infrastructure(infrastructure_slug))

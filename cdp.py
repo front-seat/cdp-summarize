@@ -51,6 +51,7 @@ FRIENDLY_DT_FORMAT = "%a %b %-d, %Y @ %-I:%M%p"
 
 class SupportsToDict(t.Protocol):
     def to_dict(self) -> dict:
+        """Return a dictionary representation of this object."""
         ...
 
 
@@ -61,7 +62,8 @@ class FireOAwareJSONEncoder(json.JSONEncoder):
     those end up in `model_instance.to_dict()` results).
     """
 
-    def default(self, obj):
+    def default(self, obj: t.Any) -> t.Any:
+        """Encode datetime and ReferenceDocLoader objects."""
         if isinstance(obj, datetime.datetime):
             return obj.isoformat()
         elif isinstance(obj, datetime.date):
@@ -86,7 +88,7 @@ def format_json(items: t.Iterable[SupportsToDict]) -> str:
     )
 
 
-def format(items: t.Iterable[SupportsToDict], jsonl: bool) -> str:
+def fmt(items: t.Iterable[SupportsToDict], jsonl: bool) -> str:
     """Dump an iterable of SupportsToDict."""
     return format_jsonl(items) if jsonl else format_json(items)
 
@@ -97,8 +99,8 @@ def format(items: t.Iterable[SupportsToDict], jsonl: bool) -> str:
 
 
 @click.group()
-def cdp():
-    """A simple CDP data command line interface."""
+def cdp() -> None:
+    """Create a CLI for the CDP."""
     pass
 
 
@@ -111,7 +113,7 @@ def cdp():
     required=False,
     help="Output as JSON lines instead of formatted JSON.",
 )
-def instances(jsonl: bool):
+def instances(jsonl: bool) -> None:
     """
     Print a list of available CDP instances.
 
@@ -122,7 +124,7 @@ def instances(jsonl: bool):
 
 
 @cdp.group()
-def events():
+def events() -> None:
     """Fetch events from a CDP instance."""
     pass
 
@@ -164,8 +166,8 @@ def list_cmd(
     start_date: datetime.datetime | None,
     end_date: datetime.datetime | None,
     jsonl: bool,
-    **kwargs,
-):
+    **kwargs: t.Any,
+) -> None:
     """Create a short list of matching events for a given CDP instance."""
     events = get_events_for_slug(INSTANCES[instance], start_date, end_date)
     if jsonl:
@@ -225,13 +227,13 @@ def expand(
     start_date: datetime.datetime | None,
     end_date: datetime.datetime | None,
     jsonl: bool,
-    **kwargs,
-):
+    **kwargs: t.Any,
+) -> None:
     """Fetch and expand events from a CDP instance."""
     events = get_expanded_events_for_slug(
         INSTANCES[instance], start_date, end_date, list(event_ids)
     )
-    print(format(events, jsonl))
+    print(fmt(events, jsonl))
 
 
 @events.command()
@@ -287,8 +289,8 @@ def summarize(
     end_date: datetime.datetime | None,
     jsonl: bool,
     verbose: bool,
-    **kwargs,
-):
+    **kwargs: t.Any,
+) -> None:
     """Fetch and summarize events from a CDP instance."""
     # Make sure we have an OPENAI_API_KEY
     if not os.getenv("OPENAI_API_KEY", None):
@@ -304,7 +306,7 @@ def summarize(
         INSTANCES[instance], start_date, end_date, list(event_ids)
     )
     summaries = (summarize_expanded_event(connection, event) for event in events)
-    print(format(summaries, jsonl))
+    print(fmt(summaries, jsonl))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+# ruff: noqa
+# mypy: ignore-errors
 import unittest
 
 from . import mime as m
