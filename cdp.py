@@ -290,6 +290,12 @@ def summarize(
     **kwargs,
 ):
     """Fetch and summarize events from a CDP instance."""
+    # Make sure we have an OPENAI_API_KEY
+    if not os.getenv("OPENAI_API_KEY", None):
+        raise click.ClickException(
+            "You must set the OPENAI_API_KEY environment variable to use this command."
+        )
+
     if verbose:
         logging.basicConfig(level=logging.INFO)
 

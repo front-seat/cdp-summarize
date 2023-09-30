@@ -38,6 +38,11 @@ def _make_langchain_prompt(
     Given a python-style format string, render it into a final prompt string.
     From there, wrap it in a LangChain PromptTemplate instance.
     """
+    # Deal with missing context.
+    context = context or {}
+    # Deal with the annoying overlap between langchain and python format
+    # strings.
+    context["text"] = "{text}"
     rendered_prompt = format_str.format(**(context or {}))
     return PromptTemplate(
         template=rendered_prompt, input_variables=list(input_variables)
@@ -138,8 +143,9 @@ def _summarize_langchain_llm(
     headline_documents = [Document(page_content=text) for text in chunk_summaries]
     headline_chain = load_summarize_chain(
         llm,
-        chain_type="stuff",
-        stuff_prompt=headline_combine_prompt,
+        chain_type="map_reduce",
+        map_prompt=map_prompt,
+        combine_prompt=headline_combine_prompt,
     )
     headline_outputs = headline_chain(headline_documents)
     if "output_text" not in headline_outputs:

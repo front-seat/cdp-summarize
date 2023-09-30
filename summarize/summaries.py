@@ -257,6 +257,13 @@ def summarize_matter_file(
             uri=t.cast(str, matter_file.uri),
         )
     else:
+        logger.info(
+            "matter %s file %s :: summarized:\n\tHeadline: %s\n\tDetail: %s",
+            expanded_matter.matter.key,
+            matter_file.key,
+            result.headline,
+            result.detail,
+        )
         return MatterFileSummary(
             key=matter_file.key,
             headline=result.headline,
@@ -336,6 +343,12 @@ def summarize_expanded_transcript(
             uri=t.cast(str, expanded_transcript.file.uri),
         )
     else:
+        logger.info(
+            "transcript %s :: summarized:\n\tHeadline: %s\n\tDetail: %s",
+            expanded_transcript.transcript.key,
+            result.headline,
+            result.detail,
+        )
         return TranscriptSummary(
             key=expanded_transcript.transcript.key,
             headline=result.headline,

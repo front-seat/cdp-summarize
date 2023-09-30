@@ -160,7 +160,10 @@ def extract_text_from_bytes(io: io.BytesIO, content_type: str) -> str:
         return _extract_pdf(io)
     elif mime_type == "text/plain":
         return _extract_text(io, charset)
-    elif mime_type == "application/msword":
+    elif mime_type in {
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }:
         return _extract_msword(io)
     else:
         raise ValueError(f"Currently unsupported MIME type {mime_type}.")

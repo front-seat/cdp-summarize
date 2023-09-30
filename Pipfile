@@ -9,6 +9,7 @@ langchain = "*"
 docx2txt = "*"
 pdfplumber = "*"
 openai = "*"
+tiktoken = "*"
 
 [dev-packages]
 black = "*"
