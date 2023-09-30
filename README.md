@@ -20,6 +20,17 @@ After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 You'll need an OpenAI API key to use this project. You can get one at https://beta.openai.com/. Before running `./cdp.py summarize ...`, you'll need to set the `OPENAI_API_KEY` environment variable to your API key.
 
+## Example summary output
+
+Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in `summarize/summaries.py`.
+
+Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its matters and sessions, etc.)
+
+For debug/development purposes, every item also contains the `text` that was summarized (post-extraction and clean-up).
+
+See an [example summary output](./example-summary.json) for details.
+
+
 ## `cdp.py` command-line
 
 This is the main command-line tool for this project. It's a Python script that uses [Click](https://click.palletsprojects.com/en/8.0.x/) to manage subcommands.
@@ -90,7 +101,7 @@ You can use `--id` multiple times, or can also provide `--start-date` or `--end-
 
 ### Summarizing an event
 
-This is the main event! Much like the `expand` subcommand, you can summarize an event with:
+This is the reason we're here! Much like the `expand` subcommand, you can summarize an event with:
 
 ```console
 > ./cdp.py events summarize -i Seattle --id bc316138545b
@@ -104,13 +115,3 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
-
-## Summary output
-
-Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in `summarize/summaries.py`.
-
-Every item is summarized with both a short `headline` and a paragraph-link `detail`. The returned data structure contains summary roll-ups at every level.
-
-In addition, every item contains the summarized `text`, primarily for debugging/development purposes.
-
-See an [example summary output](./example-summary.json) for details.
