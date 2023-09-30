@@ -43,7 +43,7 @@ You can run `./cdp.py --help` to see the available subcommands.
 
 ### Getting available CDP instances
 
-You'll probably want to start by running `./cdp.py list` to see the available CDP instance names:
+You'll probably want to start by running `./cdp.py instances` to see the available CDP instance names:
 
 ```console
 > ./cdp.py instances
