@@ -12,6 +12,8 @@ This is a Python 3.11 project that uses [Pipenv](https://pipenv.pypa.io/en/lates
 
 For now, you'll want to clone this repository and `pipenv install --dev` to get set up.
 
+Use `pipenv shell` to activate the environment.
+
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 ### OpenAI
