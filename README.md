@@ -19,6 +19,8 @@ Then install dependencies and dev dependencies:
 > pip install -r requirements-dev.txt
 ```
 
+Use `pipenv shell` to activate the environment.
+
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 ### OpenAI
@@ -26,6 +28,14 @@ After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 Get an OpenAI API key at https://platform.openai.com/.
 
 Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`
+
+## Example summary output
+
+Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in [`summarize/summaries.py`](./summarize/summaries.py).
+
+Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its matters and sessions, etc.)
+
+See an [example summary output](./example-summary.json) for details.
 
 ## `cdp.py` command-line
 
@@ -97,7 +107,7 @@ You can use `--id` multiple times, or can also provide `--start-date` or `--end-
 
 ### Summarizing an event
 
-This is the main event! Much like the `expand` subcommand, you can summarize an event with:
+This is the reason we're here! Much like the `expand` subcommand, you can summarize an event with:
 
 ```console
 > ./cdp.py events summarize -i Seattle --id bc316138545b
@@ -111,11 +121,3 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
-
-## Summary output
-
-Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in `summarize/summaries.py`.
-
-Every item is summarized with both a short `headline` and a paragraph-link `detail`. The returned data structure contains summary roll-ups at every level.
-
-See an [example summary output](./example-summary.json) for details.
