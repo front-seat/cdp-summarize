@@ -19,8 +19,6 @@ Then install dependencies and dev dependencies:
 > pip install -r requirements-dev.txt
 ```
 
-Use `pipenv shell` to activate the environment.
-
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 ### OpenAI
@@ -33,7 +31,7 @@ Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize
 
 Summary output is JSON and follows a simple data structure primarily defined by the `@dataclass`es in [`summarize/summaries.py`](./summarize/summaries.py).
 
-Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its matters and sessions, etc.)
+Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its `Matter`s and `Session`s, etc.)
 
 See an [example summary output](./example-summary.json) for details.
 
