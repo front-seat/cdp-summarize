@@ -6,40 +6,13 @@ import json
 import logging
 import os
 import typing as t
-from inspect import getmembers
 
 import click
-from cdp_data import CDPInstances
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
-from summarize.connection import CDPConnection
-from summarize.queries import get_events_for_slug, get_expanded_events_for_slug
+from summarize.connection import INSTANCE_NAMES, INSTANCES, CDPConnection
+from summarize.queries import get_events, get_expanded_events
 from summarize.summaries import summarize_expanded_event
-
-# ------------------------------------------------------------
-# Utilities
-# ------------------------------------------------------------
-
-
-def _get_available_cdp_instances() -> dict[str, str]:
-    """
-    Return a dictionary mapping a friendly name for the CLI
-    (like "Seattle") to a CDP infrastructure slug (like
-    "cdp-seattle-21723dcf").
-
-    Try not to duplicate the CDPInstances class; rather, use it.
-    """
-    return {
-        name: value
-        for name, value in getmembers(CDPInstances)
-        if isinstance(value, str) and not name.startswith("__")
-    }
-
-
-INSTANCES = _get_available_cdp_instances()
-INSTANCE_NAMES = list(INSTANCES.keys())
-CDP_INSTANCE_NAME: str | None = os.getenv("CDP_INSTANCE_NAME", None)
-
 
 FRIENDLY_DT_FORMAT = "%a %b %-d, %Y @ %-I:%M%p"
 
@@ -169,7 +142,8 @@ def list_cmd(
     **kwargs: t.Any,
 ) -> None:
     """Create a short list of matching events for a given CDP instance."""
-    events = get_events_for_slug(INSTANCES[instance], start_date, end_date)
+    connection = CDPConnection.for_name(instance)
+    events = get_events(connection, start_date, end_date)
     if jsonl:
         print(format_jsonl(events))
     else:
@@ -230,9 +204,8 @@ def expand(
     **kwargs: t.Any,
 ) -> None:
     """Fetch and expand events from a CDP instance."""
-    events = get_expanded_events_for_slug(
-        INSTANCES[instance], start_date, end_date, list(event_ids)
-    )
+    connection = CDPConnection.for_name(instance)
+    events = get_expanded_events(connection, start_date, end_date, list(event_ids))
     print(fmt(events, jsonl))
 
 
@@ -301,10 +274,8 @@ def summarize(
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
-    connection = CDPConnection.connect(INSTANCES[instance])
-    events = get_expanded_events_for_slug(
-        INSTANCES[instance], start_date, end_date, list(event_ids)
-    )
+    connection = CDPConnection.for_name(instance)
+    events = get_expanded_events(connection, start_date, end_date, list(event_ids))
     summaries = (summarize_expanded_event(connection, event) for event in events)
     print(fmt(summaries, jsonl))
 
