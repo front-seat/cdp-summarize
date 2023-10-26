@@ -1,11 +1,12 @@
 {
   "python.terminal.activateEnvironment": true,
+  "python.analysis.ignore": [".venv/**"],
   "[python]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-      "source.fixAll": true,
-      "source.organizeImports": true
-    }
+      "source.fixAll": true
+    },
+    "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "[django-html]": {
     "editor.formatOnSave": true,

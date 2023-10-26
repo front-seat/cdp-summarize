@@ -1,5 +1,6 @@
 # llm.py :: lower level code that interacts with langchain to summarize
 
+import abc
 import os
 import typing as t
 from dataclasses import dataclass
@@ -9,11 +10,12 @@ from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChai
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
+from langchain.llms.huggingface_endpoint import HuggingFaceEndpoint
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-OPENAI_ORGANIZATION = os.getenv("OPENAI_ORGANIZATION", None)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
+HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN", None)
 
 
 class SummarizationError(Exception):
@@ -154,31 +156,103 @@ def _summarize_langchain_llm(
     return SummarizationResult(headline=headline, detail=detail)
 
 
-def summarize_openai(
-    text: str,
-    detail_combine_template: str,
-    headline_combine_template: str,
-    context: dict[str, t.Any] | None = None,
-    model_name: str = "gpt-3.5-turbo",
-    temperature: float = 0.4,
-    chunk_size: int = 3584,
-) -> SummarizationResult:
-    """Summarize text using langchain and OpenAI. Low-level."""
-    if OPENAI_API_KEY is None:
-        raise RuntimeError("OPENAI_API_KEY is not set.")
-    llm = ChatOpenAI(
-        temperature=temperature,
-        model_name=model_name,  # type: ignore
-        openai_api_key=OPENAI_API_KEY,
-        openai_organization=OPENAI_ORGANIZATION,
-    )
-    return _summarize_langchain_llm(
-        text=text,
-        llm=llm,
-        # For now, always use detail templates when mapping.
-        map_template=detail_combine_template,
-        detail_combine_template=detail_combine_template,
-        headline_combine_template=headline_combine_template,
-        context=context,
-        chunk_size=chunk_size,
-    )
+DEFAULT_CHUNK_SIZE: int = 3584
+
+
+class Summarizer(abc.ABC):
+    """Abstract base class for summarizers."""
+
+    chunk_size: int
+
+    def __init__(self) -> None:
+        self.chunk_size = DEFAULT_CHUNK_SIZE
+
+    @abc.abstractmethod
+    def summarize(
+        self,
+        text: str,
+        detail_combine_template: str,
+        headline_combine_template: str,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text. Return a SummarizationResult."""
+        ...
+
+
+class OpenAISummarizer(Summarizer):
+    """A summarizer that uses an OpenAI endpoint."""
+
+    model_name: str
+    openai_api_key: str
+    openai_organization: str | None
+    temperature: float
+
+    def __init__(
+        self,
+        model_name: str | None,
+        openai_api_key: str,
+        openai_organization: str | None,
+    ):
+        super().__init__()
+        self.model_name = model_name or "gpt-3.5-turbo"
+        self.openai_api_key = openai_api_key
+        self.temperature = 0.4
+
+    def summarize(
+        self,
+        text: str,
+        detail_combine_template: str,
+        headline_combine_template: str,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text using an OpenAI API endpoint."""
+        llm = ChatOpenAI(
+            temperature=self.temperature,
+            model=self.model_name,
+            openai_api_key=self.openai_api_key,
+            openai_organization=self.openai_organization,
+        )
+        return _summarize_langchain_llm(
+            text=text,
+            llm=llm,
+            # For now, always use detail templates when mapping.
+            map_template=detail_combine_template,
+            detail_combine_template=detail_combine_template,
+            headline_combine_template=headline_combine_template,
+            context=context,
+            chunk_size=self.chunk_size,
+        )
+
+
+class HuggingfaceEndpointSummarizer(Summarizer):
+    """A summarizer that uses a Huggingface endpoint."""
+
+    endpoint_url: str
+    huggingfacehub_api_token: str
+
+    def __init__(self, endpoint_url: str, huggingfacehub_api_token: str):
+        super().__init__()
+        self.endpoint_url = endpoint_url
+        self.huggingfacehub_api_token = huggingfacehub_api_token
+
+    def summarize(
+        self,
+        text: str,
+        detail_combine_template: str,
+        headline_combine_template: str,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text using a Huggingface endpoint."""
+        llm = HuggingFaceEndpoint(
+            endpoint_url=self.endpoint_url,
+            huggingfacehub_api_token=self.huggingfacehub_api_token,
+        )
+        return _summarize_langchain_llm(
+            text=text,
+            llm=llm,
+            # For now, always use detail templates when mapping.
+            map_template=detail_combine_template,
+            detail_combine_template=detail_combine_template,
+            headline_combine_template=headline_combine_template,
+            context=context,
+        )

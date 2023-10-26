@@ -23,9 +23,23 @@ After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
 ### OpenAI
 
-Get an OpenAI API key at https://platform.openai.com/.
+If you'd like to summarize using GPT-3.5 or GPT-4, you'll need to get an OpenAI API key at https://platform.openai.com/.
 
 Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`
+
+By default, if you're using OpenAI, `gpt-3.5-turbo` is selected. This is a good price/performance model for summarization tasks. You can explicitly select an OpenAI model with the `--openai` option. (For instance, if you want to spend a _lot_ of money, try `--openai gpt-4`.)
+
+### Huggingface Endpoints
+
+If you'd like to summarize with an alternative model and don't want to run said model locally, you can use [Huggingface Endpoints](https://huggingface.co/inference-endpoints). You'll need to get an API key from there.
+
+Set the `HUGGINGFACEHUB_API_TOKEN` environment variable before running `./cdp.py summarize ...`
+
+You'll need to specify the endpoint URL with the `--huggingface https://...` option.
+
+### Which service will actually get used?
+
+If only one API key is present in the environment, `./cdp.py summarize ...` will use it. If both API keys are present, `huggingface` will be used if an endpoint URL is specified, otherwise `openai` will be used.
 
 ## Example summary output
 

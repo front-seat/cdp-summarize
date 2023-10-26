@@ -11,6 +11,7 @@ import click
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
 from summarize.connection import INSTANCE_NAMES, INSTANCES, CDPConnection
+from summarize.llm import HuggingfaceEndpointSummarizer, OpenAISummarizer, Summarizer
 from summarize.queries import get_events, get_expanded_events
 from summarize.summaries import summarize_expanded_event
 
@@ -255,6 +256,20 @@ def expand(
     required=False,
     help="Log summarization progress to stderr.",
 )
+@click.option(
+    "--openai",
+    type=str,
+    default="gpt-3.5-turbo",
+    required=False,
+    help="Explicitly choose a specific OpenAI model.",
+)
+@click.option(
+    "--huggingface",
+    type=str,
+    default=None,
+    required=False,
+    help="Provide a huggingface endpoints URL that supports `text-generation` or `text2text-generation`",  # noqa: E501
+)
 def summarize(
     instance: str,
     event_ids: tuple,
@@ -262,21 +277,47 @@ def summarize(
     end_date: datetime.datetime | None,
     jsonl: bool,
     verbose: bool,
+    openai: str,
+    huggingface: str | None,
     **kwargs: t.Any,
 ) -> None:
     """Fetch and summarize events from a CDP instance."""
-    # Make sure we have an OPENAI_API_KEY
-    if not os.getenv("OPENAI_API_KEY", None):
-        raise click.ClickException(
-            "You must set the OPENAI_API_KEY environment variable to use this command."
+    summarizer: Summarizer | None = None
+
+    # Does the user want to use huggingface? Make sure we have a key.
+    if huggingface is not None:
+        huggingfacehub_api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN", None)
+        if not huggingfacehub_api_token:
+            raise click.ClickException(
+                "You must set the HUGGINGFACEHUB_API_TOKEN environment variable to use your huggingface endpoint."  # noqa: E501
+            )
+        summarizer = HuggingfaceEndpointSummarizer(
+            endpoint_url=huggingface, huggingfacehub_api_token=huggingfacehub_api_token
         )
+
+    # If we're not using huggingface, make sure we have an OPENAI_API_KEY
+    if summarizer is None:
+        openai_api_key = os.getenv("OPENAI_API_KEY", None)
+        if not openai_api_key:
+            raise click.ClickException(
+                "You must set the OPENAI_API_KEY environment variable to use this command with GPT-3.5 or GPT-4."  # noqa: E501
+            )
+        summarizer = OpenAISummarizer(
+            model_name=openai,
+            openai_api_key=openai_api_key,
+            openai_organization=os.getenv("OPENAI_ORGANIZATION", None),
+        )
+
+    assert summarizer is not None
 
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
     connection = CDPConnection.for_name(instance)
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
-    summaries = (summarize_expanded_event(connection, event) for event in events)
+    summaries = (
+        summarize_expanded_event(summarizer, connection, event) for event in events
+    )
     print(fmt(summaries, jsonl))
 
 
