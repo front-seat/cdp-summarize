@@ -39,7 +39,9 @@ You'll need to specify the endpoint URL with the `--huggingface https://...` opt
 
 ### Which service will actually get used?
 
-If only one API key is present in the environment, `./cdp.py summarize ...` will use it. If both API keys are present, `huggingface` will be used if an endpoint URL is specified, otherwise `openai` will be used.
+If `--huggingface <endpoint_url>` is provided on the command line, huggingface will be used.
+
+Otherwise, the default OpenAI model will be used. (Currently, `gpt-3.5-turbo`).
 
 ## Example summary output
 
