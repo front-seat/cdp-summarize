@@ -1,7 +1,6 @@
 # llm.py :: lower level code that interacts with langchain to summarize
 
 import abc
-import os
 import typing as t
 from dataclasses import dataclass
 
@@ -13,9 +12,6 @@ from langchain.docstore.document import Document
 from langchain.llms.huggingface_endpoint import HuggingFaceEndpoint
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
-HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN", None)
 
 
 class SummarizationError(Exception):
@@ -153,10 +149,7 @@ def _summarize_langchain_llm(
     headline = headline_outputs["output_text"]
 
     # We did it!
-    return SummarizationResult(headline=headline, detail=detail)
-
-
-DEFAULT_CHUNK_SIZE: int = 3584
+    return SummarizationResult(headline=headline.strip(), detail=detail.strip())
 
 
 class Summarizer(abc.ABC):
@@ -164,8 +157,8 @@ class Summarizer(abc.ABC):
 
     chunk_size: int
 
-    def __init__(self) -> None:
-        self.chunk_size = DEFAULT_CHUNK_SIZE
+    def __init__(self, chunk_size: int) -> None:
+        self.chunk_size = chunk_size
 
     @abc.abstractmethod
     def summarize(
@@ -182,6 +175,8 @@ class Summarizer(abc.ABC):
 class OpenAISummarizer(Summarizer):
     """A summarizer that uses an OpenAI endpoint."""
 
+    DEFAULT_CHUNK_SIZE = 3584
+
     model_name: str
     openai_api_key: str
     openai_organization: str | None
@@ -193,7 +188,7 @@ class OpenAISummarizer(Summarizer):
         openai_api_key: str,
         openai_organization: str | None,
     ):
-        super().__init__()
+        super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.model_name = model_name or "gpt-3.5-turbo"
         self.openai_api_key = openai_api_key
         self.temperature = 0.4
@@ -227,11 +222,13 @@ class OpenAISummarizer(Summarizer):
 class HuggingfaceEndpointSummarizer(Summarizer):
     """A summarizer that uses a Huggingface endpoint."""
 
+    DEFAULT_CHUNK_SIZE = 3584
+
     endpoint_url: str
     huggingfacehub_api_token: str
 
     def __init__(self, endpoint_url: str, huggingfacehub_api_token: str):
-        super().__init__()
+        super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.endpoint_url = endpoint_url
         self.huggingfacehub_api_token = huggingfacehub_api_token
 
@@ -246,6 +243,7 @@ class HuggingfaceEndpointSummarizer(Summarizer):
         llm = HuggingFaceEndpoint(
             endpoint_url=self.endpoint_url,
             huggingfacehub_api_token=self.huggingfacehub_api_token,
+            task="text-generation",
         )
         return _summarize_langchain_llm(
             text=text,
