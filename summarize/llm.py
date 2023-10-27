@@ -13,6 +13,8 @@ from langchain.llms.huggingface_endpoint import HuggingFaceEndpoint
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
+from .prompts import HeadlineDetailPromptTemplates
+
 
 class SummarizationError(Exception):
     """Exception raised when summary fails."""
@@ -71,9 +73,7 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
 def _summarize_langchain_llm(
     text: str,
     llm: BaseLanguageModel,
-    map_template: str,
-    detail_combine_template: str,
-    headline_combine_template: str,
+    hd_prompts: HeadlineDetailPromptTemplates,
     context: dict[str, t.Any] | None = None,
     chunk_size: int = 3584,
 ) -> SummarizationResult:
@@ -98,10 +98,11 @@ def _summarize_langchain_llm(
     # we don't use the metadata. It defaults to an empty dict.
     detail_documents = [Document(page_content=text) for text in texts]
 
-    # Build LangChain-style PromptTemplates.
-    map_prompt = _make_langchain_prompt(map_template, context)
-    detail_combine_prompt = _make_langchain_prompt(detail_combine_template, context)
-    headline_combine_prompt = _make_langchain_prompt(headline_combine_template, context)
+    # Build LangChain-style PromptTemplates. For now, we always use the
+    # "detail" templates for mapping.
+    map_prompt = _make_langchain_prompt(hd_prompts.detail, context)
+    detail_combine_prompt = _make_langchain_prompt(hd_prompts.detail, context)
+    headline_combine_prompt = _make_langchain_prompt(hd_prompts.headline, context)
 
     # Build a LangChain summarization chain. This one will produce the "detail"
     # summary.
@@ -152,8 +153,20 @@ def _summarize_langchain_llm(
     return SummarizationResult(headline=headline.strip(), detail=detail.strip())
 
 
-class Summarizer(abc.ABC):
-    """Abstract base class for summarizers."""
+class LanguageModel(abc.ABC):
+    """
+    Abstract base class for a language models.
+
+    Here, we try to hide the underlying mechanics of using LangChain and also
+    make it possible to abstract away key details of the underlying model and
+    provider itself.
+
+    For our purposes today, there's only one thing we actually need our
+    language model to do: provide a summarize() method that takes text and
+    returns both a "headline" and a "detail" summary for the text. This is our
+    "low level" summarization method; you need to call it with appropriate
+    templates to get the desired results.
+    """
 
     chunk_size: int
 
@@ -164,16 +177,15 @@ class Summarizer(abc.ABC):
     def summarize(
         self,
         text: str,
-        detail_combine_template: str,
-        headline_combine_template: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
         context: dict[str, t.Any] | None = None,
     ) -> SummarizationResult:
         """Summarize text. Return a SummarizationResult."""
         ...
 
 
-class OpenAISummarizer(Summarizer):
-    """A summarizer that uses an OpenAI endpoint."""
+class OpenAILanguageModel(LanguageModel):
+    """A language model via an OpenAI endpoint."""
 
     DEFAULT_CHUNK_SIZE = 3584
 
@@ -191,13 +203,13 @@ class OpenAISummarizer(Summarizer):
         super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.model_name = model_name or "gpt-3.5-turbo"
         self.openai_api_key = openai_api_key
+        self.openai_organization = openai_organization
         self.temperature = 0.4
 
     def summarize(
         self,
         text: str,
-        detail_combine_template: str,
-        headline_combine_template: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
         context: dict[str, t.Any] | None = None,
     ) -> SummarizationResult:
         """Summarize text using an OpenAI API endpoint."""
@@ -210,17 +222,14 @@ class OpenAISummarizer(Summarizer):
         return _summarize_langchain_llm(
             text=text,
             llm=llm,
-            # For now, always use detail templates when mapping.
-            map_template=detail_combine_template,
-            detail_combine_template=detail_combine_template,
-            headline_combine_template=headline_combine_template,
+            hd_prompts=hd_prompts,
             context=context,
             chunk_size=self.chunk_size,
         )
 
 
-class HuggingfaceEndpointSummarizer(Summarizer):
-    """A summarizer that uses a Huggingface endpoint."""
+class HuggingFaceLanguageModel(LanguageModel):
+    """A language model via a Huggingface endpoint."""
 
     DEFAULT_CHUNK_SIZE = 3584
 
@@ -235,8 +244,7 @@ class HuggingfaceEndpointSummarizer(Summarizer):
     def summarize(
         self,
         text: str,
-        detail_combine_template: str,
-        headline_combine_template: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
         context: dict[str, t.Any] | None = None,
     ) -> SummarizationResult:
         """Summarize text using a Huggingface endpoint."""
@@ -248,9 +256,7 @@ class HuggingfaceEndpointSummarizer(Summarizer):
         return _summarize_langchain_llm(
             text=text,
             llm=llm,
-            # For now, always use detail templates when mapping.
-            map_template=detail_combine_template,
-            detail_combine_template=detail_combine_template,
-            headline_combine_template=headline_combine_template,
+            hd_prompts=hd_prompts,
             context=context,
+            chunk_size=self.chunk_size,
         )

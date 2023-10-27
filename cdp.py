@@ -5,15 +5,17 @@ import datetime
 import json
 import logging
 import os
+import pathlib
 import typing as t
 
 import click
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
 from summarize.connection import INSTANCE_NAMES, INSTANCES, CDPConnection
-from summarize.llm import HuggingfaceEndpointSummarizer, OpenAISummarizer, Summarizer
+from summarize.llm import HuggingFaceLanguageModel, LanguageModel, OpenAILanguageModel
+from summarize.prompts import PromptTemplates
 from summarize.queries import get_events, get_expanded_events
-from summarize.summaries import summarize_expanded_event
+from summarize.summaries import CDPSummarizer
 
 FRIENDLY_DT_FORMAT = "%a %b %-d, %Y @ %-I:%M%p"
 
@@ -270,6 +272,12 @@ def expand(
     required=False,
     help="Provide a huggingface endpoints URL that supports `text-generation` or `text2text-generation`",  # noqa: E501
 )
+@click.option(
+    "--prompts",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    default=None,
+    required=False,
+)
 def summarize(
     instance: str,
     event_ids: tuple,
@@ -279,10 +287,11 @@ def summarize(
     verbose: bool,
     openai: str,
     huggingface: str | None,
+    prompts: str | None,
     **kwargs: t.Any,
 ) -> None:
     """Fetch and summarize events from a CDP instance."""
-    summarizer: Summarizer | None = None
+    llm: LanguageModel | None = None
 
     # Does the user want to use huggingface? Make sure we have a key.
     if huggingface is not None:
@@ -291,33 +300,38 @@ def summarize(
             raise click.ClickException(
                 "You must set the HUGGINGFACEHUB_API_TOKEN environment variable to use your huggingface endpoint."  # noqa: E501
             )
-        summarizer = HuggingfaceEndpointSummarizer(
+        llm = HuggingFaceLanguageModel(
             endpoint_url=huggingface, huggingfacehub_api_token=huggingfacehub_api_token
         )
 
     # If we're not using huggingface, make sure we have an OPENAI_API_KEY
-    if summarizer is None:
+    if llm is None:
         openai_api_key = os.getenv("OPENAI_API_KEY", None)
         if not openai_api_key:
             raise click.ClickException(
                 "You must set the OPENAI_API_KEY environment variable to use this command with GPT-3.5 or GPT-4."  # noqa: E501
             )
-        summarizer = OpenAISummarizer(
+        llm = OpenAILanguageModel(
             model_name=openai,
             openai_api_key=openai_api_key,
             openai_organization=os.getenv("OPENAI_ORGANIZATION", None),
         )
 
-    assert summarizer is not None
+    assert llm is not None
+
+    prompt_templates = (
+        PromptTemplates.from_file(pathlib.Path(prompts))
+        if prompts
+        else PromptTemplates.default()
+    )
 
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
     connection = CDPConnection.for_name(instance)
+    summarizer = CDPSummarizer(llm=llm, connection=connection, prompts=prompt_templates)
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
-    summaries = (
-        summarize_expanded_event(summarizer, connection, event) for event in events
-    )
+    summaries = (summarizer.summarize_expanded_event(event) for event in events)
     print(fmt(summaries, jsonl))
 
 
