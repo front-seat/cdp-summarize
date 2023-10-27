@@ -21,27 +21,26 @@ Then install dependencies and dev dependencies:
 
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
-### OpenAI
+### Choosing an LLM model
 
-If you'd like to summarize using GPT-3.5 or GPT-4, you'll need to get an OpenAI API key at https://platform.openai.com/.
+We currently support:
 
-Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`
+1. [OpenAI models](https://platform.openai.com/docs/models)
+2. [Hugging Face Endpoints](https://huggingface.co/inference-endpoints) that support `text-generation`
 
-By default, if you're using OpenAI, `gpt-3.5-turbo` is selected. This is a good price/performance model for summarization tasks. You can explicitly select an OpenAI model with the `--openai` option. (For instance, if you want to spend a _lot_ of money, try `--openai gpt-4`.)
+By default, the `./cdp.py` tool will use OpenAI's [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5), a good price/performance model for summarization tasks.
 
-### Huggingface Endpoints
+You can explicitly choose a different OpenAI model with the `--openai` option. For instance, if you'd like to spend a lot of money, try `--openai gpt-4`.
 
-If you'd like to summarize with an alternative model and don't want to run said model locally, you can use [Huggingface Endpoints](https://huggingface.co/inference-endpoints). You'll need to get an API key from there.
+If you're using OpenAI, you'll need to set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`. You can [get an OpenAI key from their platform site](https://platform.openai.com/).
 
-Set the `HUGGINGFACEHUB_API_TOKEN` environment variable before running `./cdp.py summarize ...`
+If you'd like to use Hugging Face instead, you'll need to set the `HUGGINGFACEHUB_API_TOKEN` environment variable and pass the `--huggingface <endpoint_url>` parameter to `./cdp.py`.
 
-You'll need to specify the endpoint URL with the `--huggingface https://...` option.
+### Altering the LLM prompts
 
-### Which service will actually get used?
+The `./cdp.py` tool ships with a default set of prompt templates to generate summaries. These are found in [`summarize/prompts.json`](./summarize/prompts.json).
 
-If `--huggingface <endpoint_url>` is provided on the command line, huggingface will be used.
-
-Otherwise, the default OpenAI model will be used. (Currently, `gpt-3.5-turbo`).
+The default prompts are tuned primarily for use with GPT-3.5-Turbo. If you're using a different model &mdash; for instance, an open model like [Mistral 7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) or [Llama2](https://huggingface.co/meta-llama) &mdash; you may want to tune the prompts. Simply create a new `custom-prompts.json` file wherever you like, and pass the `--prompts <path_to_file>` parameter to `./cdp.py summarize ...`.
 
 ## Example summary output
 
