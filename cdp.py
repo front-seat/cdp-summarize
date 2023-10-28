@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-
 import datetime
 import json
 import logging
 import os
 import pathlib
+import sys
+import time
 import typing as t
 
 import click
@@ -291,6 +292,9 @@ def summarize(
     **kwargs: t.Any,
 ) -> None:
     """Fetch and summarize events from a CDP instance."""
+    # Measure the total time elapsed
+    start_time = time.time()
+
     llm: LanguageModel | None = None
 
     # Does the user want to use huggingface? Make sure we have a key.
@@ -332,7 +336,18 @@ def summarize(
     summarizer = CDPSummarizer(llm=llm, connection=connection, prompts=prompt_templates)
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
     summaries = (summarizer.summarize_expanded_event(event) for event in events)
-    print(fmt(summaries, jsonl))
+    summaries_list = list(summaries)  # for stats
+    print(fmt(summaries_list, jsonl))
+
+    # Print stats in verbose mode
+    if verbose:
+        elapsed_time = time.time() - start_time
+        print(
+            f"Summarized {len(summaries_list)} events in {elapsed_time:,.2f} seconds.",
+            file=sys.stderr,
+        )
+        if isinstance(llm, OpenAILanguageModel):
+            print(llm.stats, file=sys.stderr)
 
 
 if __name__ == "__main__":

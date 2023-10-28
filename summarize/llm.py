@@ -5,6 +5,7 @@ import typing as t
 from dataclasses import dataclass
 
 from langchain.base_language import BaseLanguageModel
+from langchain.callbacks import OpenAICallbackHandler, get_openai_callback
 from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
@@ -153,6 +154,53 @@ def _summarize_langchain_llm(
     return SummarizationResult(headline=headline.strip(), detail=detail.strip())
 
 
+@dataclass(frozen=True)
+class OpenAIServiceStats:
+    total_tokens: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    successful_requests: int = 0
+    total_cost_usd: float = 0.0
+
+    def __add__(
+        self, other: t.Union["OpenAIServiceStats", OpenAICallbackHandler]
+    ) -> "OpenAIServiceStats":
+        """Add two ServiceStats instances together."""
+        if isinstance(other, OpenAICallbackHandler):
+            other = OpenAIServiceStats.from_callback_handler(other)
+        return OpenAIServiceStats(
+            total_tokens=self.total_tokens + other.total_tokens,
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            successful_requests=self.successful_requests + other.successful_requests,
+            total_cost_usd=self.total_cost_usd + other.total_cost_usd,
+        )
+
+    @classmethod
+    def from_callback_handler(
+        cls, handler: OpenAICallbackHandler
+    ) -> "OpenAIServiceStats":
+        """Create a ServiceStats instance from an OpenAICallbackHandler."""
+        return cls(
+            total_tokens=handler.total_tokens,
+            prompt_tokens=handler.prompt_tokens,
+            completion_tokens=handler.completion_tokens,
+            successful_requests=handler.successful_requests,
+            total_cost_usd=handler.total_cost,
+        )
+
+    def __str__(self) -> str:
+        """Return a string representation of this instance."""
+        return (
+            f"OpenAI LLM Stats:\n"
+            f"total_tokens: {self.total_tokens:,}\n"
+            f"prompt_tokens: {self.prompt_tokens:,}\n"
+            f"completion_tokens: {self.completion_tokens:,}\n"
+            f"successful_requests: {self.successful_requests:,}\n"
+            f"total_cost_usd: ${self.total_cost_usd:.2f}\n"
+        )
+
+
 class LanguageModel(abc.ABC):
     """
     Abstract base class for a language models.
@@ -194,6 +242,8 @@ class OpenAILanguageModel(LanguageModel):
     openai_organization: str | None
     temperature: float
 
+    stats: OpenAIServiceStats
+
     def __init__(
         self,
         model_name: str | None,
@@ -205,6 +255,7 @@ class OpenAILanguageModel(LanguageModel):
         self.openai_api_key = openai_api_key
         self.openai_organization = openai_organization
         self.temperature = 0.4
+        self.stats = OpenAIServiceStats()
 
     def summarize(
         self,
@@ -219,13 +270,18 @@ class OpenAILanguageModel(LanguageModel):
             openai_api_key=self.openai_api_key,
             openai_organization=self.openai_organization,
         )
-        return _summarize_langchain_llm(
-            text=text,
-            llm=llm,
-            hd_prompts=hd_prompts,
-            context=context,
-            chunk_size=self.chunk_size,
-        )
+        # This is such an awkward use of a context manager on langchain's
+        # part but... okay, sure. This is how we count tokens.
+        with get_openai_callback() as openai_callback:
+            result = _summarize_langchain_llm(
+                text=text,
+                llm=llm,
+                hd_prompts=hd_prompts,
+                context=context,
+                chunk_size=self.chunk_size,
+            )
+            self.stats = self.stats + openai_callback
+        return result
 
 
 class HuggingFaceLanguageModel(LanguageModel):

@@ -1,0 +1,90 @@
+[
+  {
+    "key": "event/bc316138545b",
+    "headline": "Seattle City Council Considers Ordinance to Address Substance Use Disorder, Mayor Plans $27 Million Investment in Treatment and Services",
+    "detail": "The Public Safety and Human Services Committee discussed an ordinance in Seattle that addresses substance use disorder by adding crimes of knowing possession and use of controlled substances in public. The ordinance includes provisions for diversion programs, treatment, and alternative approaches to booking. The Mayor plans to invest $27 million in facilities, treatment, and services for substance use disorder. Amendments to the ordinance were discussed, including guidelines for police officers and reporting requirements. The meeting also addressed concerns about drug use, crime, homelessness, racial disparities, and the budget deficit. The council expressed a commitment to a balanced approach and acknowledged the negative impact of past drug enforcement policies. The bill will be heard on September 26th.",
+    "dt": "2023-09-12T16:30:00+00:00",
+    "matter_summaries": [
+      {
+        "key": "matter/b710f5a82633",
+        "headline": "Seattle City Council Proposes Ordinance to Add Crimes of Possession and Use of Controlled Substances in Public, Focus on Diversion and Treatment Programs.",
+        "detail": "The document discusses an ordinance proposed in Seattle that aims to address substance use disorder by adding crimes of knowing possession and use of controlled substances in public. The ordinance includes provisions for diversion programs, treatment, and alternative approaches to booking. It also mentions the need for additional funding for the LEAD program and the expansion of the Deferred Prosecution program. The proposed ordinance changes the direction given to officers when dealing with individuals who are a harm to themselves. The Mayor has announced plans to invest $27 million in facilities, treatment, and services for substance use disorder. Several amendments to the ordinance are also discussed, including guidelines for police officers and reporting requirements. The legislation aims to divert individuals to recovery services instead of arresting them and does not have direct financial impacts or relate to climate change or property.",
+        "matter_file_summaries": [
+          {
+            "key": "matter_file/096884ef8c4d",
+            "headline": "Seattle's LEAD program at risk of limited access without sufficient resources for pre-booking diversion.",
+            "detail": "Amendment 3 proposes adding recitals to highlight the City's support for diverting individuals away from the criminal legal system and the capacity of the LEAD program to provide pre-booking diversion. Insufficient resources for pre-booking diversion could negatively impact access to program services for individuals connected to LEAD outside of police referrals. The estimated funding needed to scale LEAD is $21 million in 2022 and $30 million in 2023. Prioritizing referrals based on certain criteria could limit access to program services for individuals with behavioral issues, extreme poverty, and/or income instability. The proportion of LEAD clients connected to the program due to public use of controlled substances is unknown.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/15f4f6d8-ba36-41bc-b303-32766595ca01.pdf"
+          },
+          {
+            "key": "matter_file/435cac91a74c",
+            "headline": "King County Implements Policy Changes for Drug Arrests and Use of Force.",
+            "detail": "The amendment proposes changes to a public safety response to the opioid crisis, including acknowledging the limitations of diversion, adding references to state bill crimes, and establishing a behavioral health advisory committee. The Seattle Police Department will adopt new policies to minimize use of force and prioritize diversion, treatment, and alternatives to booking. Data on racial composition of arrests and diversions will be collected. Officer decision-making and the use of force will be guided by prioritizing safety and making reasonable attempts at diversion. A report will be produced twice a year, providing information on individuals referred to diversion, and the data will be available for further analysis.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/bbf98cf0-e4dd-4889-ad08-2e2de0a38889.pdf"
+          },
+          {
+            "key": "matter_file/50fb35383651",
+            "headline": "Expansion of Seattle Municipal Court's Deferred Prosecution Program to Include Substance Use and Mental Health Disorders.",
+            "detail": "Amendment 4 aims to expand the Deferred Prosecution program in Seattle Municipal Court to include offenses related to substance use disorder or mental health disorder. The amendment provides guidance to the court on treatment program terms and case dismissal considerations. It also incorporates specific provisions related to deferred prosecution for certain offenses and outlines procedures for offenses related to substance use disorders and mental health disorders. Successful completion of the program terms may result in case dismissal. Implementation of the program is contingent on sufficient resources and capacity.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/b2316214-6af6-4c55-8c75-442367bca0f1.pdf"
+          },
+          {
+            "key": "matter_file/534cc05deee8",
+            "headline": "Amendment grants officers discretionary power in dealing with individuals who are a harm to themselves.",
+            "detail": "This amendment to a public safety and health response to the opioid crisis changes the direction given to officers when dealing with individuals who are a harm to themselves. It removes the requirement for officers to contact diversion or outreach services before making an arrest and eliminates the need for additional facts and circumstances to justify an arrest. Officer decision-making will be based on a threat of harm assessment, and this assessment cannot be used as a defense at trial.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/c4e9b1f9-fed8-4996-8931-9c88c5f9e927.docx"
+          },
+          {
+            "key": "matter_file/5997ff430c9c",
+            "headline": "Seattle Considers Bill to Guide Police Response to Drug Possession and Use",
+            "detail": "The text discusses a proposed bill in Seattle that aims to address substance use disorder by making the possession or use of unprescribed or illegal controlled substances in public a gross misdemeanor. The Mayor has announced plans to invest $27 million in facilities, treatment, and services for substance use disorder. The bill also outlines policies for arrests related to drug possession and use, emphasizing diversion and referral to services. The text also discusses the LEAD program, which aims to divert individuals with behavioral health issues or income instability away from the legal system and towards community-based care. The program has seen positive outcomes but has limited capacity and needs additional funding and resources for expansion. The text provides projections for LEAD referrals and discusses the potential costs and considerations associated with expanding the program.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/db4bebe6-8925-4c26-9a25-ec9287417a55.pdf"
+          },
+          {
+            "key": "matter_file/7acb0158876e",
+            "headline": "Amendment 2 expands drug-related offenses and mandates behavioral health evaluations.",
+            "detail": "Amendment 2 to CB 120645 proposes adding the crimes of knowing possession and use of a controlled substance in a public place. The amendment requires the Seattle Police Department to define \"threat of harm to others\" in their policies related to drug use and possession. If the identified factors rise to a level of \"likelihood of serious harm,\" as defined by RCW 71.05.020, the officer would take the individual into custody for a behavioral health evaluation.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/3f5677e1-f56f-47ca-b1ed-f805cf6684b3.pdf"
+          },
+          {
+            "key": "matter_file/81a022eda38c",
+            "headline": "Seattle Proposes Amendments to Police Guidelines for Dealing with Drug Use",
+            "detail": "Amendment 1 Version 2 to CB 120645 proposes changes to the public safety and health response to the opioid crisis in Seattle. It includes provisions such as acknowledging the limitations of diversion, clarifying crimes covered in the state bill, and establishing a behavioral health advisory committee. The amendment also outlines guidelines for police officers when encountering individuals who pose a threat to themselves due to drug use. The Seattle Police Department will collect data on the racial composition of those arrested and diverted. A behavioral health alternatives committee will be established to advise on changes in police protocols and policies.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/7528e572-b2ff-4db9-aed3-1bdeb5220ea2.docx"
+          },
+          {
+            "key": "matter_file/8f7bcd250b91",
+            "headline": "Amendment 5 proposes reporting requirements and data collection to assess policy impact on officer performance and address drug offense laws.",
+            "detail": "Amendment 5 Version 1 to CB 120645 proposes reporting requirements and an independent review of harm provisions related to drug offenses. It outlines the data that needs to be collected, including drug overdose and shooting data, and requires officers to complete an arrest report if authorized. The Office of Inspector General and Seattle Police Department will collect this data and make recommendations for improving the ordinance. Annual reports will be provided to the Council until 2030. The amendment also specifies the information needed for a review of subsection 3.28.141, including arrest numbers, details of individuals transported for booking, dismissed cases, and suggestions for improving the law.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/02c2199d-eb7d-4166-931f-c27b5bdd009f.pdf"
+          },
+          {
+            "key": "matter_file/a0473311e74c",
+            "headline": "Amendment 6 grants officers discretion in assessing harm when enforcing drug-related crimes.",
+            "detail": "Amendment 6 Version 1 proposes changing the direction given to officers when assessing the threat of harm to others from mandatory to discretionary, allowing officers to use their discretion when enforcing crimes related to public use or possession of controlled substances. This change assumes the passage of Amendment 1/sponsor substitute.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/394fc98c-99a2-4f4e-81c3-0236890e846f.docx"
+          },
+          {
+            "key": "matter_file/d3aafe67d113",
+            "headline": "Seattle legislation proposes diversion over arrest for drug-related misdemeanors, emphasizing recovery services.",
+            "detail": "The legislation being discussed in Seattle focuses on addressing the public safety impact of public use and possession of controlled substances. It aims to divert individuals to recovery services rather than arresting them and includes a threat of harm standard for police officer decision-making. There may be financial implications, but not implementing the legislation is not expected to have direct financial impacts. The legislation does not relate to climate change or property and does not require public hearing or notice publication.",
+            "uri": "https://legistar2.granicus.com/seattle/attachments/683dbc20-5bdf-40b9-ab69-7528c477ffa0.docx"
+          }
+        ]
+      }
+    ],
+    "session_summaries": [
+      {
+        "key": "session/87fdccfcba38",
+        "headline": "Seattle City Council Tackles Drug Use, Public Safety, Homelessness, and Implicit Racial Bias in Recent Meeting.",
+        "detail": "During a recent city council meeting, the main topic of discussion was Council Bill 120645, which pertains to possession and public use of controlled substances. The meeting focused on hiring officers who prioritize protecting human life and upholding peace. Public comments were made regarding drug use, crime, and homelessness, with some supporting the proposed legislation and others opposing it. The meeting also addressed the Housing First approach to ending homelessness and concerns about the budget deficit. The council expressed a commitment to a balanced approach and acknowledged the need to address racial disparities and the negative impact of past drug enforcement policies. The meeting also discussed addiction issues, post-overdose recovery resources, and practical policies utilizing the provider community. Amendments to the legislation were discussed, including changes to police protocols and the involvement of officers with crisis intervention training. Funding for diversion programs and the importance of data collection and evaluation were also highlighted. Concerns were raised about the funding gap for the budget and the projected gap for next year. The meeting concluded with a decision to hear the bill on September 26th.",
+        "transcript_summary": {
+          "key": "transcript/c001e232edd5",
+          "headline": "Seattle City Council Tackles Drug Use, Public Safety, Homelessness, and Implicit Racial Bias in Recent Meeting.",
+          "detail": "During a recent city council meeting, the main topic of discussion was Council Bill 120645, which pertains to possession and public use of controlled substances. The meeting focused on hiring officers who prioritize protecting human life and upholding peace. Public comments were made regarding drug use, crime, and homelessness, with some supporting the proposed legislation and others opposing it. The meeting also addressed the Housing First approach to ending homelessness and concerns about the budget deficit. The council expressed a commitment to a balanced approach and acknowledged the need to address racial disparities and the negative impact of past drug enforcement policies. The meeting also discussed addiction issues, post-overdose recovery resources, and practical policies utilizing the provider community. Amendments to the legislation were discussed, including changes to police protocols and the involvement of officers with crisis intervention training. Funding for diversion programs and the importance of data collection and evaluation were also highlighted. Concerns were raised about the funding gap for the budget and the projected gap for next year. The meeting concluded with a decision to hear the bill on September 26th.",
+          "uri": "gs://cdp-seattle-21723dcf.appspot.com/a941c22ec1d46722b5e7dd197df22a07e570b2563365d45fe84b65d01c23a2a1-cdp_4_1_2-transcript.json"
+        }
+      }
+    ]
+  }
+]
