@@ -11,7 +11,8 @@ from cdp_backend.database import models as cdp_models
 
 from .connection import CDPConnection
 from .extract import extract_text_from_bytes, extract_text_from_transcript_model
-from .llm import SummarizationResult, summarize_openai
+from .llm import LanguageModel, SummarizationResult
+from .prompts import PromptTemplates
 from .queries import ExpandedEvent, ExpandedMatter, ExpandedSession, ExpandedTranscript
 
 logger = logging.getLogger(__name__)
@@ -117,292 +118,233 @@ class EventSummary(SummaryBase):
 # Model summarization prompts & methods
 # ------------------------------------------------------------
 
-CONCISE_DETAIL = """Write a concise summary of the following text. Include the most important details:
 
-TEXT:::
-{text}
-:::END_TEXT
+class CDPSummarizer:
+    """Top-level summarizer implementation for CDP data."""
 
-CONCISE_SUMMARY:"""  # noqa: E501
+    llm: LanguageModel
+    prompts: PromptTemplates
+    connection: CDPConnection
 
+    def __init__(
+        self, llm: LanguageModel, prompts: PromptTemplates, connection: CDPConnection
+    ):
+        self.llm = llm
+        self.prompts = prompts
+        self.connection = connection
 
-CONCISE_HEADLINE = """Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:
+    def summarize_concise(self, text: str) -> SummarizationResult:
+        """Use the concise summary style to summarize text."""
+        return self.llm.summarize(text, self.prompts.concise)
 
-TEXT:::
-{text}
-:::END_TEXT
+    def summarize_matter(self, title: str, text: str) -> SummarizationResult:
+        """Use the matter summary style to summarize text."""
+        return self.llm.summarize(text, self.prompts.matter, {"title": title})
 
-CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
+    def summarize_transcript(self, text: str) -> SummarizationResult:
+        """Use the transcript summary style to summarize text."""
+        return self.llm.summarize(text, self.prompts.transcript)
 
-
-def summarize_concise(text: str) -> SummarizationResult:
-    """Use the concise summary style to summarize text."""
-    return summarize_openai(
-        text=text,
-        detail_combine_template=CONCISE_DETAIL,
-        headline_combine_template=CONCISE_HEADLINE,
-    )
-
-
-MATTER_DETAIL = """The following is a set of summaries of documents related to a single matter considered by a city council body. Write a concise summary of the following text, which is titled "{title}". Include the most important details:
-
-"{text}"
-
-CITY_COUNCIL_MATTER_SUMMARY:"""  # noqa: E501
-
-
-MATTER_HEADLINE = """The following is a set of summaries of documents related to a single matter considered by a city council body. Write a concise and extremely compact headline (one sentence or less) for the action, which is titled "{title}". Capture only the most salient detail or two:
-
-"{text}"
-
-CITY_COUNCIL_MATTER_HEADLINE:"""  # noqa: E501
-
-
-def summarize_matter(title: str, text: str) -> SummarizationResult:
-    """Use the matter summary style to summarize text."""
-    return summarize_openai(
-        text=text,
-        detail_combine_template=MATTER_DETAIL,
-        headline_combine_template=MATTER_HEADLINE,
-        context={"title": title},
-    )
-
-
-TRANSCRIPT_DETAIL = """The following is a transcript of a recent city council meeting. Concisely summarize it:
-
-"{text}"
-
-CITY_COUNCIL_TRANSCRIPT_SUMMARY:"""  # noqa: E501
-
-
-TRANSCRIPT_HEADLINE = """The following is a transcript of a recent city council meeting. Write a concise and extremely compact headline (one sentence or less):
-
-"{text}"
-
-CITY_COUNCIL_TRANSCRIPT_HEADLINE:"""  # noqa: E501
-
-
-def summarize_transcript(text: str) -> SummarizationResult:
-    """Use the transcript summary style to summarize text."""
-    return summarize_openai(
-        text=text,
-        detail_combine_template=TRANSCRIPT_DETAIL,
-        headline_combine_template=TRANSCRIPT_HEADLINE,
-    )
-
-
-EVENT_DETAIL = """The following is a set of summaries of documents related to a single event at the {body_name} on {dt_fmt}. Write a concise summary, including the most important details:
-
-"{text}"
-
-CITY_COUNCIL_EVENT_SUMMARY:"""  # noqa: E501
-
-
-EVENT_HEADLINE = """The following is a set of summaries of documents related to a single event at the {body_name} on {dt_fmt}. Write a concise and extremely compact headline (one sentence or less). Capture only the most salient detail or two:
-
-"{text}"
-
-CITY_COUNCIL_EVENT_HEADLINE:"""  # noqa: E501
-
-
-def summarize_event(body_name: str, dt_fmt: str, text: str) -> SummarizationResult:
-    """Use the event summary style to summarize text."""
-    return summarize_openai(
-        text=text,
-        detail_combine_template=EVENT_DETAIL,
-        headline_combine_template=EVENT_HEADLINE,
-        context={"body_name": body_name, "dt_fmt": dt_fmt},
-    )
-
-
-# ------------------------------------------------------------
-# Top-Level Model Summarization Methods
-# ------------------------------------------------------------
-
-
-def summarize_matter_file(
-    connection: CDPConnection,
-    expanded_matter: ExpandedMatter,
-    matter_file: cdp_models.MatterFile,
-) -> MatterFileSummary:
-    """
-    Summarize an arbitrary matter file.
-
-    On failure, return a summary with warning text (allowing further
-    summarization to continue).
-    """
-    try:
-        logger.info(
-            "matter %s file %s :: downloading ",
-            expanded_matter.matter.key,
-            matter_file.key,
-        )
-        content_type, data = expanded_matter.get_file(connection, matter_file)
-        logger.info(
-            "matter %s file %s :: extracting",
-            expanded_matter.matter.key,
-            matter_file.key,
-        )
-        text = extract_text_from_bytes(io.BytesIO(data), content_type)
-        logger.info(
-            "matter %s file %s :: summarizing",
-            expanded_matter.matter.key,
-            matter_file.key,
-        )
-        result = summarize_concise(text)
-    except Exception as e:
-        logger.exception("Failed to summarize matter file %s", matter_file.key)
-        return MatterFileSummary(
-            key=matter_file.key,
-            headline="Failed to summarize",
-            detail=str(e),
-            uri=t.cast(str, matter_file.uri),
-        )
-    else:
-        return MatterFileSummary(
-            key=matter_file.key,
-            headline=result.headline,
-            detail=result.detail,
-            uri=t.cast(str, matter_file.uri),
+    def summarize_event(
+        self, body_name: str, dt_fmt: str, text: str
+    ) -> SummarizationResult:
+        """Use the event summary style to summarize text."""
+        return self.llm.summarize(
+            text, self.prompts.event, {"body_name": body_name, "dt_fmt": dt_fmt}
         )
 
+    # ------------------------------------------------------------
+    # Top-Level Model Summarization Methods
+    # ------------------------------------------------------------
 
-def summarize_expanded_matter(
-    connection: CDPConnection, expanded_matter: ExpandedMatter
-) -> MatterSummary:
-    """
-    Summarize a legislative matter by summarizing all of its files and
-    combining the results.
+    def summarize_matter_file(
+        self,
+        expanded_matter: ExpandedMatter,
+        matter_file: cdp_models.MatterFile,
+    ) -> MatterFileSummary:
+        """
+        Summarize an arbitrary matter file.
 
-    On failure, return a summary with warning text (allowing further
-    summarization to continue).
-    """
-    matter_file_summaries = tuple(
-        summarize_matter_file(connection, expanded_matter, matter_file)
-        for matter_file in expanded_matter.files
-    )
-    text = "\n\n".join(
-        matter_file_summary.detail for matter_file_summary in matter_file_summaries
-    )
-    try:
-        logger.info("matter %s :: summarizing", expanded_matter.matter.key)
-        result = summarize_matter(t.cast(str, expanded_matter.matter.title), text)
-    except Exception as e:
-        logger.exception("Failed to summarize matter %s", expanded_matter.matter.key)
-        return MatterSummary(
-            key=expanded_matter.matter.key,
-            headline="Failed to summarize",
-            detail=str(e),
-            matter_file_summaries=matter_file_summaries,
+        On failure, return a summary with warning text (allowing further
+        summarization to continue).
+        """
+        try:
+            logger.info(
+                "matter %s file %s :: downloading ",
+                expanded_matter.matter.key,
+                matter_file.key,
+            )
+            content_type, data = expanded_matter.get_file(self.connection, matter_file)
+            logger.info(
+                "matter %s file %s :: extracting",
+                expanded_matter.matter.key,
+                matter_file.key,
+            )
+            text = extract_text_from_bytes(io.BytesIO(data), content_type)
+            logger.info(
+                "matter %s file %s :: summarizing",
+                expanded_matter.matter.key,
+                matter_file.key,
+            )
+            result = self.summarize_concise(text)
+        except Exception as e:
+            logger.exception("Failed to summarize matter file %s", matter_file.key)
+            return MatterFileSummary(
+                key=matter_file.key,
+                headline="Failed to summarize",
+                detail=str(e),
+                uri=t.cast(str, matter_file.uri),
+            )
+        else:
+            return MatterFileSummary(
+                key=matter_file.key,
+                headline=result.headline,
+                detail=result.detail,
+                uri=t.cast(str, matter_file.uri),
+            )
+
+    def summarize_expanded_matter(
+        self, expanded_matter: ExpandedMatter
+    ) -> MatterSummary:
+        """
+        Summarize a legislative matter by summarizing all of its files and
+        combining the results.
+
+        On failure, return a summary with warning text (allowing further
+        summarization to continue).
+        """
+        matter_file_summaries = tuple(
+            self.summarize_matter_file(expanded_matter, matter_file)
+            for matter_file in expanded_matter.files
         )
-    else:
-        return MatterSummary(
-            key=expanded_matter.matter.key,
-            headline=result.headline,
-            detail=result.detail,
-            matter_file_summaries=matter_file_summaries,
+        text = "\n\n".join(
+            matter_file_summary.detail for matter_file_summary in matter_file_summaries
+        )
+        try:
+            logger.info("matter %s :: summarizing", expanded_matter.matter.key)
+            result = self.summarize_matter(
+                t.cast(str, expanded_matter.matter.title), text
+            )
+        except Exception as e:
+            logger.exception(
+                "Failed to summarize matter %s", expanded_matter.matter.key
+            )
+            return MatterSummary(
+                key=expanded_matter.matter.key,
+                headline="Failed to summarize",
+                detail=str(e),
+                matter_file_summaries=matter_file_summaries,
+            )
+        else:
+            return MatterSummary(
+                key=expanded_matter.matter.key,
+                headline=result.headline,
+                detail=result.detail,
+                matter_file_summaries=matter_file_summaries,
+            )
+
+    def summarize_expanded_transcript(
+        self,
+        expanded_transcript: ExpandedTranscript,
+    ) -> TranscriptSummary:
+        """
+        Summarize an expanded transcript.
+
+        On failure, return a summary with warning text (allowing further
+        summarization to continue).
+        """
+        try:
+            logger.info(
+                "transcript %s :: downloading ", expanded_transcript.transcript.key
+            )
+            tm = expanded_transcript.get_transcript_model(self.connection)
+            logger.info(
+                "transcript %s :: extracting", expanded_transcript.transcript.key
+            )
+            text = extract_text_from_transcript_model(tm)
+            logger.info(
+                "transcript %s :: summarizing", expanded_transcript.transcript.key
+            )
+            result = self.summarize_transcript(text)
+        except Exception as e:
+            logger.exception(
+                "Failed to summarize transcript %s", expanded_transcript.transcript.key
+            )
+            return TranscriptSummary(
+                key=expanded_transcript.transcript.key,
+                headline="Failed to summarize",
+                detail=str(e),
+                uri=t.cast(str, expanded_transcript.file.uri),
+            )
+        else:
+            return TranscriptSummary(
+                key=expanded_transcript.transcript.key,
+                headline=result.headline,
+                detail=result.detail,
+                uri=t.cast(str, expanded_transcript.file.uri),
+            )
+
+    def summarize_expanded_session(
+        self, expanded_session: ExpandedSession
+    ) -> SessionSummary:
+        """Summarize an expanded session by summarizing its transcript."""
+        transcript = expanded_session.transcript
+        transcript_summary = (
+            self.summarize_expanded_transcript(transcript) if transcript else None
+        )
+        # Just pass the transcript summary onward; is there anything else we
+        # should be summarizing here?
+        return SessionSummary(
+            key=expanded_session.session.key,
+            headline=transcript_summary.headline
+            if transcript_summary
+            else "Session has no transcript",
+            detail=transcript_summary.detail if transcript_summary else "",
+            transcript_summary=transcript_summary,
         )
 
+    def summarize_expanded_event(self, expanded_event: ExpandedEvent) -> EventSummary:
+        """
+        Summarize an expanded event.
 
-def summarize_expanded_transcript(
-    connection: CDPConnection,
-    expanded_transcript: ExpandedTranscript,
-) -> TranscriptSummary:
-    """
-    Summarize an expanded transcript.
-
-    On failure, return a summary with warning text (allowing further
-    summarization to continue).
-    """
-    try:
-        logger.info("transcript %s :: downloading ", expanded_transcript.transcript.key)
-        tm = expanded_transcript.get_transcript_model(connection)
-        logger.info("transcript %s :: extracting", expanded_transcript.transcript.key)
-        text = extract_text_from_transcript_model(tm)
-        logger.info("transcript %s :: summarizing", expanded_transcript.transcript.key)
-        result = summarize_transcript(text)
-    except Exception as e:
-        logger.exception(
-            "Failed to summarize transcript %s", expanded_transcript.transcript.key
+        On failure, return a summary with warning text (allowing further
+        summarization to continue).
+        """
+        matter_summaries = tuple(
+            self.summarize_expanded_matter(matter) for matter in expanded_event.matters
         )
-        return TranscriptSummary(
-            key=expanded_transcript.transcript.key,
-            headline="Failed to summarize",
-            detail=str(e),
-            uri=t.cast(str, expanded_transcript.file.uri),
+        session_summaries = tuple(
+            self.summarize_expanded_session(session)
+            for session in expanded_event.sessions
         )
-    else:
-        return TranscriptSummary(
-            key=expanded_transcript.transcript.key,
-            headline=result.headline,
-            detail=result.detail,
-            uri=t.cast(str, expanded_transcript.file.uri),
+        text = (
+            "\n\n".join(matter_summary.detail for matter_summary in matter_summaries)
+            + "\n\n"
+            + "\n\n".join(
+                session_summary.detail for session_summary in session_summaries
+            )
         )
-
-
-def summarize_expanded_session(
-    connection: CDPConnection, expanded_session: ExpandedSession
-) -> SessionSummary:
-    """Summarize an expanded session by summarizing its transcript."""
-    transcript = expanded_session.transcript
-    transcript_summary = (
-        summarize_expanded_transcript(connection, transcript) if transcript else None
-    )
-    # Just pass the transcript summary onward; is there anything else we
-    # should be summarizing here?
-    return SessionSummary(
-        key=expanded_session.session.key,
-        headline=transcript_summary.headline
-        if transcript_summary
-        else "Session has no transcript",
-        detail=transcript_summary.detail if transcript_summary else "",
-        transcript_summary=transcript_summary,
-    )
-
-
-def summarize_expanded_event(
-    connection: CDPConnection, expanded_event: ExpandedEvent
-) -> EventSummary:
-    """
-    Summarize an expanded event.
-
-    On failure, return a summary with warning text (allowing further
-    summarization to continue).
-    """
-    matter_summaries = tuple(
-        summarize_expanded_matter(connection, matter)
-        for matter in expanded_event.matters
-    )
-    session_summaries = tuple(
-        summarize_expanded_session(connection, session)
-        for session in expanded_event.sessions
-    )
-    text = (
-        "\n\n".join(matter_summary.detail for matter_summary in matter_summaries)
-        + "\n\n"
-        + "\n\n".join(session_summary.detail for session_summary in session_summaries)
-    )
-    try:
-        logger.info("event %s :: summarizing", expanded_event.event.key)
-        body_name = expanded_event.body_name or "City Council"
-        friendly_date_fmt = "%A, %B %-d, %Y"
-        result = summarize_event(body_name, friendly_date_fmt, text)
-    except Exception as e:
-        logger.exception("Failed to summarize event %s", expanded_event.event.key)
-        return EventSummary(
-            key=expanded_event.event.key,
-            headline="Failed to summarize",
-            detail=str(e),
-            dt=expanded_event.dt,
-            matter_summaries=matter_summaries,
-            session_summaries=session_summaries,
-        )
-    else:
-        return EventSummary(
-            key=expanded_event.event.key,
-            headline=result.headline,
-            detail=result.detail,
-            dt=expanded_event.dt,
-            matter_summaries=matter_summaries,
-            session_summaries=session_summaries,
-        )
+        try:
+            logger.info("event %s :: summarizing", expanded_event.event.key)
+            body_name = expanded_event.body_name or "City Council"
+            friendly_date_fmt = "%A, %B %-d, %Y"
+            result = self.summarize_event(body_name, friendly_date_fmt, text)
+        except Exception as e:
+            logger.exception("Failed to summarize event %s", expanded_event.event.key)
+            return EventSummary(
+                key=expanded_event.event.key,
+                headline="Failed to summarize",
+                detail=str(e),
+                dt=expanded_event.dt,
+                matter_summaries=matter_summaries,
+                session_summaries=session_summaries,
+            )
+        else:
+            return EventSummary(
+                key=expanded_event.event.key,
+                headline=result.headline,
+                detail=result.detail,
+                dt=expanded_event.dt,
+                matter_summaries=matter_summaries,
+                session_summaries=session_summaries,
+            )

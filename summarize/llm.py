@@ -1,19 +1,20 @@
 # llm.py :: lower level code that interacts with langchain to summarize
 
-import os
+import abc
 import typing as t
 from dataclasses import dataclass
 
 from langchain.base_language import BaseLanguageModel
+from langchain.callbacks import OpenAICallbackHandler, get_openai_callback
 from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
+from langchain.llms.huggingface_endpoint import HuggingFaceEndpoint
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-OPENAI_ORGANIZATION = os.getenv("OPENAI_ORGANIZATION", None)
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
+from .prompts import HeadlineDetailPromptTemplates
 
 
 class SummarizationError(Exception):
@@ -73,9 +74,7 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
 def _summarize_langchain_llm(
     text: str,
     llm: BaseLanguageModel,
-    map_template: str,
-    detail_combine_template: str,
-    headline_combine_template: str,
+    hd_prompts: HeadlineDetailPromptTemplates,
     context: dict[str, t.Any] | None = None,
     chunk_size: int = 3584,
 ) -> SummarizationResult:
@@ -100,10 +99,11 @@ def _summarize_langchain_llm(
     # we don't use the metadata. It defaults to an empty dict.
     detail_documents = [Document(page_content=text) for text in texts]
 
-    # Build LangChain-style PromptTemplates.
-    map_prompt = _make_langchain_prompt(map_template, context)
-    detail_combine_prompt = _make_langchain_prompt(detail_combine_template, context)
-    headline_combine_prompt = _make_langchain_prompt(headline_combine_template, context)
+    # Build LangChain-style PromptTemplates. For now, we always use the
+    # "detail" templates for mapping.
+    map_prompt = _make_langchain_prompt(hd_prompts.detail, context)
+    detail_combine_prompt = _make_langchain_prompt(hd_prompts.detail, context)
+    headline_combine_prompt = _make_langchain_prompt(hd_prompts.headline, context)
 
     # Build a LangChain summarization chain. This one will produce the "detail"
     # summary.
@@ -151,34 +151,168 @@ def _summarize_langchain_llm(
     headline = headline_outputs["output_text"]
 
     # We did it!
-    return SummarizationResult(headline=headline, detail=detail)
+    return SummarizationResult(headline=headline.strip(), detail=detail.strip())
 
 
-def summarize_openai(
-    text: str,
-    detail_combine_template: str,
-    headline_combine_template: str,
-    context: dict[str, t.Any] | None = None,
-    model_name: str = "gpt-3.5-turbo",
-    temperature: float = 0.4,
-    chunk_size: int = 3584,
-) -> SummarizationResult:
-    """Summarize text using langchain and OpenAI. Low-level."""
-    if OPENAI_API_KEY is None:
-        raise RuntimeError("OPENAI_API_KEY is not set.")
-    llm = ChatOpenAI(
-        temperature=temperature,
-        model_name=model_name,  # type: ignore
-        openai_api_key=OPENAI_API_KEY,
-        openai_organization=OPENAI_ORGANIZATION,
-    )
-    return _summarize_langchain_llm(
-        text=text,
-        llm=llm,
-        # For now, always use detail templates when mapping.
-        map_template=detail_combine_template,
-        detail_combine_template=detail_combine_template,
-        headline_combine_template=headline_combine_template,
-        context=context,
-        chunk_size=chunk_size,
-    )
+@dataclass(frozen=True)
+class OpenAIServiceStats:
+    total_tokens: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    successful_requests: int = 0
+    total_cost_usd: float = 0.0
+
+    def __add__(
+        self, other: t.Union["OpenAIServiceStats", OpenAICallbackHandler]
+    ) -> "OpenAIServiceStats":
+        """Add two ServiceStats instances together."""
+        if isinstance(other, OpenAICallbackHandler):
+            other = OpenAIServiceStats.from_callback_handler(other)
+        return OpenAIServiceStats(
+            total_tokens=self.total_tokens + other.total_tokens,
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            successful_requests=self.successful_requests + other.successful_requests,
+            total_cost_usd=self.total_cost_usd + other.total_cost_usd,
+        )
+
+    @classmethod
+    def from_callback_handler(
+        cls, handler: OpenAICallbackHandler
+    ) -> "OpenAIServiceStats":
+        """Create a ServiceStats instance from an OpenAICallbackHandler."""
+        return cls(
+            total_tokens=handler.total_tokens,
+            prompt_tokens=handler.prompt_tokens,
+            completion_tokens=handler.completion_tokens,
+            successful_requests=handler.successful_requests,
+            total_cost_usd=handler.total_cost,
+        )
+
+    def __str__(self) -> str:
+        """Return a string representation of this instance."""
+        return (
+            f"OpenAI LLM Stats:\n"
+            f"total_tokens: {self.total_tokens:,}\n"
+            f"prompt_tokens: {self.prompt_tokens:,}\n"
+            f"completion_tokens: {self.completion_tokens:,}\n"
+            f"successful_requests: {self.successful_requests:,}\n"
+            f"total_cost_usd: ${self.total_cost_usd:.2f}\n"
+        )
+
+
+class LanguageModel(abc.ABC):
+    """
+    Abstract base class for a language models.
+
+    Here, we try to hide the underlying mechanics of using LangChain and also
+    make it possible to abstract away key details of the underlying model and
+    provider itself.
+
+    For our purposes today, there's only one thing we actually need our
+    language model to do: provide a summarize() method that takes text and
+    returns both a "headline" and a "detail" summary for the text. This is our
+    "low level" summarization method; you need to call it with appropriate
+    templates to get the desired results.
+    """
+
+    chunk_size: int
+
+    def __init__(self, chunk_size: int) -> None:
+        self.chunk_size = chunk_size
+
+    @abc.abstractmethod
+    def summarize(
+        self,
+        text: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text. Return a SummarizationResult."""
+        ...
+
+
+class OpenAILanguageModel(LanguageModel):
+    """A language model via an OpenAI endpoint."""
+
+    DEFAULT_CHUNK_SIZE = 3584
+
+    model_name: str
+    openai_api_key: str
+    openai_organization: str | None
+    temperature: float
+
+    stats: OpenAIServiceStats
+
+    def __init__(
+        self,
+        model_name: str | None,
+        openai_api_key: str,
+        openai_organization: str | None,
+    ):
+        super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
+        self.model_name = model_name or "gpt-3.5-turbo"
+        self.openai_api_key = openai_api_key
+        self.openai_organization = openai_organization
+        self.temperature = 0.4
+        self.stats = OpenAIServiceStats()
+
+    def summarize(
+        self,
+        text: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text using an OpenAI API endpoint."""
+        llm = ChatOpenAI(
+            temperature=self.temperature,
+            model=self.model_name,
+            openai_api_key=self.openai_api_key,
+            openai_organization=self.openai_organization,
+        )
+        # This is such an awkward use of a context manager on langchain's
+        # part but... okay, sure. This is how we count tokens.
+        with get_openai_callback() as openai_callback:
+            result = _summarize_langchain_llm(
+                text=text,
+                llm=llm,
+                hd_prompts=hd_prompts,
+                context=context,
+                chunk_size=self.chunk_size,
+            )
+            self.stats = self.stats + openai_callback
+        return result
+
+
+class HuggingFaceLanguageModel(LanguageModel):
+    """A language model via a Huggingface endpoint."""
+
+    DEFAULT_CHUNK_SIZE = 3584
+
+    endpoint_url: str
+    huggingfacehub_api_token: str
+
+    def __init__(self, endpoint_url: str, huggingfacehub_api_token: str):
+        super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
+        self.endpoint_url = endpoint_url
+        self.huggingfacehub_api_token = huggingfacehub_api_token
+
+    def summarize(
+        self,
+        text: str,
+        hd_prompts: HeadlineDetailPromptTemplates,
+        context: dict[str, t.Any] | None = None,
+    ) -> SummarizationResult:
+        """Summarize text using a Huggingface endpoint."""
+        llm = HuggingFaceEndpoint(
+            endpoint_url=self.endpoint_url,
+            huggingfacehub_api_token=self.huggingfacehub_api_token,
+            task="text-generation",
+        )
+        return _summarize_langchain_llm(
+            text=text,
+            llm=llm,
+            hd_prompts=hd_prompts,
+            context=context,
+            chunk_size=self.chunk_size,
+        )

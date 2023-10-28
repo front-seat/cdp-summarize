@@ -21,11 +21,38 @@ Then install dependencies and dev dependencies:
 
 After that, you'll mostly use the `./cdp.py` command-line tool to do things.
 
-### OpenAI
+### Choosing an LLM model
 
-Get an OpenAI API key at https://platform.openai.com/.
+We currently support:
 
-Set the `OPENAI_API_KEY` environment variable before running `./cdp.py summarize ...`
+1. [OpenAI models](https://platform.openai.com/docs/models)
+2. [Hugging Face Endpoints](https://huggingface.co/inference-endpoints) that support `text-generation`
+
+By default, the `./cdp.py` tool will use OpenAI's [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5), a good price/performance model for summarization tasks.
+
+You can explicitly choose a different OpenAI model with the `--openai` option. For instance, if you'd like to spend a lot of money, try `--openai gpt-4`.
+
+If you're using OpenAI, you'll need to set the `OPENAI_API_KEY` environment variable before running `./cdp.py events summarize ...`. You can [get an OpenAI key from their platform site](https://platform.openai.com/).
+
+If you'd like to use Hugging Face instead, you'll need to set the `HUGGINGFACEHUB_API_TOKEN` environment variable and pass the `--huggingface <endpoint_url>` parameter to `./cdp.py`.
+
+### Altering the LLM prompts
+
+The `./cdp.py` tool ships with a default set of prompt templates to generate summaries. These are found in [`summarize/prompts.json`](./summarize/prompts.json).
+
+The default prompts are tuned primarily for use with GPT-3.5-Turbo. If you're using a different model &mdash; for instance, an open model like [Mistral 7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) or [Llama2](https://huggingface.co/meta-llama) &mdash; you may want to tune the prompts. Simply create a new `custom-prompts.json` file wherever you like, and pass the `--prompts <path_to_file>` parameter to `./cdp.py events summarize ...`.
+
+### Cost estimation
+
+Use the `--verbose` flag to output stats at the end of summarization.
+
+The total wall clock time for summarization is always provided.
+
+When using OpenAI, additional stats are provided. These include the number of prompt and completion tokens used, the number of LLM requests made, and the estimated cost of the summarization based on OpenAI's current rate sheet.
+
+Direct estimation of costs for Hugging Face endpoints is not yet supported. OpenAI charges by the token; Hugging Face endpoints charge by uptime and GPU selection. To get a rough estimate of costs, simply use the wall clock time. (Going one level deeper: the specific choice of GPU and model matter a _lot_. What you really want to know is prompt and completion token consumption and generation speed for your given model and hardware.)
+
+The four [example event summaries](./examples/) contained in this repository cost a total of $TODO to generate using `gpt-3.5-turbo`, for an average of $TODO per summary. (The most expensive summary, TODO, cost $TODO; the least expensive summary, TODO, cost $TODO.)
 
 ## Example summary output
 
@@ -33,7 +60,23 @@ Summary output is JSON and follows a simple data structure primarily defined by 
 
 Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its `Matter`s and `Session`s, etc.)
 
-See an [example summary output](./example-summary.json) for details.
+Example outputs for city council events in Seattle, Boston, Oakland, and Milwaukee are found in [the `./examples` directory](./examples/). Give them a look!
+
+Seattle bc316138545b:
+
+Summarized 1 events in 2,532.40 seconds.
+OpenAI LLM Stats:
+total_tokens: 129,868
+prompt_tokens: 106,502
+completion_tokens: 23,366
+successful_requests: 221
+total_cost_usd: $0.21
+
+Boston 319e357ca015:
+
+Oakland d2305d5903fc:
+
+Milwaukee 1c696af4b860:
 
 ## `cdp.py` command-line
 

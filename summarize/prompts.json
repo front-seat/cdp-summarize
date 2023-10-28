@@ -1,0 +1,18 @@
+{
+  "concise": {
+    "headline": "Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:\n\nTEXT:::\n{text}\n:::END_TEXT\n\nCONCISE_COMPACT_HEADLINE:",
+    "detail": "Write a concise summary of the following text. Include the most important details:\n\nTEXT:::\n{text}\n:::END_TEXT\n\nCONCISE_SUMMARY:"
+  },
+  "matter": {
+    "headline": "The following is a set of summaries of documents related to a single matter considered by a city council body. Write a concise and extremely compact headline (one sentence or less) for the action, which is titled \"{title}\". Capture only the most salient detail or two:\n\n\"{text}\"\n\nCITY_COUNCIL_MATTER_HEADLINE:",
+    "detail": "The following is a set of summaries of documents related to a single matter considered by a city council body. Write a concise summary of the following text, which is titled \"{title}\". Include the most important details:\n\n\"{text}\"\n\nCITY_COUNCIL_MATTER_SUMMARY:"
+  },
+  "transcript": {
+    "headline": "The following is a transcript of a recent city council meeting. Write a concise and extremely compact headline (one sentence or less):\n\n\"{text}\"\n\nCITY_COUNCIL_TRANSCRIPT_HEADLINE:",
+    "detail": "The following is a transcript of a recent city council meeting. Concisely summarize it:\n\n\"{text}\"\n\nCITY_COUNCIL_TRANSCRIPT_SUMMARY:"
+  },
+  "event": {
+    "headline": "The following is a set of summaries of documents related to a single event at the {body_name} on {dt_fmt}. Write a concise and extremely compact headline (one sentence or less). Capture only the most salient detail or two:\n\n\"{text}\"\n\nCITY_COUNCIL_EVENT_HEADLINE:",
+    "detail": "The following is a set of summaries of documents related to a single event at the {body_name} on {dt_fmt}. Write a concise summary, including the most important details:\n\n\"{text}\"\n\nCITY_COUNCIL_EVENT_SUMMARY:"
+  }
+}
