@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from cdp_backend.database import models as cdp_models
 
+from .cache import BaseCache, InMemoryCache
 from .connection import CDPConnection
 from .extract import extract_text_from_bytes, extract_text_from_transcript_model
 from .llm import LanguageModel, SummarizationResult
@@ -43,6 +44,20 @@ class SummaryBase:
             "detail": self.detail,
         }
 
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            "key": d["key"],
+            "headline": d["headline"],
+            "detail": d["detail"],
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> t.Self:
+        """Return an instance of this class from a dictionary."""
+        return cls(**cls.kwargs_from_dict(d))
+
 
 @dataclass(frozen=True)
 class MatterFileSummary(SummaryBase):
@@ -53,6 +68,14 @@ class MatterFileSummary(SummaryBase):
         return {
             **super().to_dict(),
             "uri": self.uri,
+        }
+
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            **super().kwargs_from_dict(d),
+            "uri": d["uri"],
         }
 
 
@@ -69,6 +92,17 @@ class MatterSummary(SummaryBase):
             ],
         }
 
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            **super().kwargs_from_dict(d),
+            "matter_file_summaries": [
+                MatterFileSummary.from_dict(matter_file)
+                for matter_file in d["matter_file_summaries"]
+            ],
+        }
+
 
 @dataclass(frozen=True)
 class TranscriptSummary(SummaryBase):
@@ -79,6 +113,14 @@ class TranscriptSummary(SummaryBase):
         return {
             **super().to_dict(),
             "uri": self.uri,
+        }
+
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            **super().kwargs_from_dict(d),
+            "uri": d["uri"],
         }
 
 
@@ -92,6 +134,16 @@ class SessionSummary(SummaryBase):
             **super().to_dict(),
             "transcript_summary": self.transcript_summary.to_dict()
             if self.transcript_summary
+            else None,
+        }
+
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            **super().kwargs_from_dict(d),
+            "transcript_summary": TranscriptSummary.from_dict(d["transcript_summary"])
+            if d["transcript_summary"]
             else None,
         }
 
@@ -113,6 +165,20 @@ class EventSummary(SummaryBase):
             ],
         }
 
+    @classmethod
+    def kwargs_from_dict(cls, d: dict) -> dict:
+        """Return a dictionary of kwargs for this class from a dictionary."""
+        return {
+            **super().kwargs_from_dict(d),
+            "dt": datetime.datetime.fromisoformat(d["dt"]),
+            "matter_summaries": [
+                MatterSummary.from_dict(matter) for matter in d["matter_summaries"]
+            ],
+            "session_summaries": [
+                SessionSummary.from_dict(session) for session in d["session_summaries"]
+            ],
+        }
+
 
 # ------------------------------------------------------------
 # Model summarization prompts & methods
@@ -125,13 +191,19 @@ class CDPSummarizer:
     llm: LanguageModel
     prompts: PromptTemplates
     connection: CDPConnection
+    cache: BaseCache
 
     def __init__(
-        self, llm: LanguageModel, prompts: PromptTemplates, connection: CDPConnection
+        self,
+        llm: LanguageModel,
+        prompts: PromptTemplates,
+        connection: CDPConnection,
+        cache: BaseCache | None = None,
     ):
         self.llm = llm
         self.prompts = prompts
         self.connection = connection
+        self.cache = cache or InMemoryCache()
 
     def summarize_concise(self, text: str) -> SummarizationResult:
         """Use the concise summary style to summarize text."""
@@ -168,6 +240,11 @@ class CDPSummarizer:
         On failure, return a summary with warning text (allowing further
         summarization to continue).
         """
+        cache_key = matter_file.key + expanded_matter.matter.key
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            logger.info("matter file %s:: using cached summary", cache_key)
+            return MatterFileSummary.from_dict(cached_result)
         try:
             logger.info(
                 "matter %s file %s :: downloading ",
@@ -186,22 +263,24 @@ class CDPSummarizer:
                 expanded_matter.matter.key,
                 matter_file.key,
             )
-            result = self.summarize_concise(text)
+            summary = self.summarize_concise(text)
         except Exception as e:
             logger.exception("Failed to summarize matter file %s", matter_file.key)
-            return MatterFileSummary(
+            result = MatterFileSummary(
                 key=matter_file.key,
                 headline="Failed to summarize",
                 detail=str(e),
                 uri=t.cast(str, matter_file.uri),
             )
         else:
-            return MatterFileSummary(
+            result = MatterFileSummary(
                 key=matter_file.key,
-                headline=result.headline,
-                detail=result.detail,
+                headline=summary.headline,
+                detail=summary.detail,
                 uri=t.cast(str, matter_file.uri),
             )
+        self.cache.set(cache_key, result.to_dict())
+        return result
 
     def summarize_expanded_matter(
         self, expanded_matter: ExpandedMatter
@@ -213,6 +292,11 @@ class CDPSummarizer:
         On failure, return a summary with warning text (allowing further
         summarization to continue).
         """
+        cache_key = expanded_matter.matter.key
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            logger.info("matter %s :: using cached summary", cache_key)
+            return MatterSummary.from_dict(cached_result)
         matter_file_summaries = tuple(
             self.summarize_matter_file(expanded_matter, matter_file)
             for matter_file in expanded_matter.files
@@ -222,26 +306,28 @@ class CDPSummarizer:
         )
         try:
             logger.info("matter %s :: summarizing", expanded_matter.matter.key)
-            result = self.summarize_matter(
+            summary = self.summarize_matter(
                 t.cast(str, expanded_matter.matter.title), text
             )
         except Exception as e:
             logger.exception(
                 "Failed to summarize matter %s", expanded_matter.matter.key
             )
-            return MatterSummary(
+            result = MatterSummary(
                 key=expanded_matter.matter.key,
                 headline="Failed to summarize",
                 detail=str(e),
                 matter_file_summaries=matter_file_summaries,
             )
         else:
-            return MatterSummary(
+            result = MatterSummary(
                 key=expanded_matter.matter.key,
-                headline=result.headline,
-                detail=result.detail,
+                headline=summary.headline,
+                detail=summary.detail,
                 matter_file_summaries=matter_file_summaries,
             )
+        self.cache.set(cache_key, result.to_dict())
+        return result
 
     def summarize_expanded_transcript(
         self,
@@ -253,6 +339,12 @@ class CDPSummarizer:
         On failure, return a summary with warning text (allowing further
         summarization to continue).
         """
+        cache_key = expanded_transcript.transcript.key
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            logger.info("transcript %s :: using cached summary", cache_key)
+            return TranscriptSummary.from_dict(cached_result)
+
         try:
             logger.info(
                 "transcript %s :: downloading ", expanded_transcript.transcript.key
@@ -265,36 +357,43 @@ class CDPSummarizer:
             logger.info(
                 "transcript %s :: summarizing", expanded_transcript.transcript.key
             )
-            result = self.summarize_transcript(text)
+            summary = self.summarize_transcript(text)
         except Exception as e:
             logger.exception(
                 "Failed to summarize transcript %s", expanded_transcript.transcript.key
             )
-            return TranscriptSummary(
+            result = TranscriptSummary(
                 key=expanded_transcript.transcript.key,
                 headline="Failed to summarize",
                 detail=str(e),
                 uri=t.cast(str, expanded_transcript.file.uri),
             )
         else:
-            return TranscriptSummary(
+            result = TranscriptSummary(
                 key=expanded_transcript.transcript.key,
-                headline=result.headline,
-                detail=result.detail,
+                headline=summary.headline,
+                detail=summary.detail,
                 uri=t.cast(str, expanded_transcript.file.uri),
             )
+        self.cache.set(cache_key, result.to_dict())
+        return result
 
     def summarize_expanded_session(
         self, expanded_session: ExpandedSession
     ) -> SessionSummary:
         """Summarize an expanded session by summarizing its transcript."""
+        cache_key = expanded_session.session.key
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            logger.info("session %s :: using cached summary", cache_key)
+            return SessionSummary.from_dict(cached_result)
         transcript = expanded_session.transcript
         transcript_summary = (
             self.summarize_expanded_transcript(transcript) if transcript else None
         )
         # Just pass the transcript summary onward; is there anything else we
         # should be summarizing here?
-        return SessionSummary(
+        result = SessionSummary(
             key=expanded_session.session.key,
             headline=transcript_summary.headline
             if transcript_summary
@@ -302,6 +401,8 @@ class CDPSummarizer:
             detail=transcript_summary.detail if transcript_summary else "",
             transcript_summary=transcript_summary,
         )
+        self.cache.set(cache_key, result.to_dict())
+        return result
 
     def summarize_expanded_event(self, expanded_event: ExpandedEvent) -> EventSummary:
         """
@@ -310,6 +411,11 @@ class CDPSummarizer:
         On failure, return a summary with warning text (allowing further
         summarization to continue).
         """
+        cache_key = expanded_event.event.key
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            logger.info("event %s :: using cached summary", cache_key)
+            return EventSummary.from_dict(cached_result)
         matter_summaries = tuple(
             self.summarize_expanded_matter(matter) for matter in expanded_event.matters
         )
@@ -328,10 +434,10 @@ class CDPSummarizer:
             logger.info("event %s :: summarizing", expanded_event.event.key)
             body_name = expanded_event.body_name or "City Council"
             friendly_date_fmt = "%A, %B %-d, %Y"
-            result = self.summarize_event(body_name, friendly_date_fmt, text)
+            summary = self.summarize_event(body_name, friendly_date_fmt, text)
         except Exception as e:
             logger.exception("Failed to summarize event %s", expanded_event.event.key)
-            return EventSummary(
+            result = EventSummary(
                 key=expanded_event.event.key,
                 headline="Failed to summarize",
                 detail=str(e),
@@ -340,11 +446,13 @@ class CDPSummarizer:
                 session_summaries=session_summaries,
             )
         else:
-            return EventSummary(
+            result = EventSummary(
                 key=expanded_event.event.key,
-                headline=result.headline,
-                detail=result.detail,
+                headline=summary.headline,
+                detail=summary.detail,
                 dt=expanded_event.dt,
                 matter_summaries=matter_summaries,
                 session_summaries=session_summaries,
             )
+        self.cache.set(cache_key, result.to_dict())
+        return result
