@@ -42,6 +42,12 @@ The `./cdp.py` tool ships with a default set of prompt templates to generate sum
 
 The default prompts are tuned primarily for use with GPT-3.5-Turbo. If you're using a different model &mdash; for instance, an open model like [Mistral 7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) or [Llama2](https://huggingface.co/meta-llama) &mdash; you may want to tune the prompts. Simply create a new `custom-prompts.json` file wherever you like, and pass the `--prompts <path_to_file>` parameter to `./cdp.py events summarize ...`.
 
+### Caching intermediate results
+
+Summarization is a multi-step process. Complex events with long transcripts or large numbers of matters and matter files can take a while to summarize. To speed things up, you can cache intermediate results to the filesystem. Provide the `--cachedir <path_to_directory>` parameter to `./cdp.py events summarize ...` to specify a location to store cached summaries. If you need to stop a summarization and resume it later, simply re-run the same command with the same `--cachedir` parameter. You'll be glad you did!
+
+It is safe to use the same cache directory for multiple CDP instances and multiple events. The tool does not evict the cache, and you probably want it somewhere stable on your filesystem anyway.
+
 ### Cost estimation
 
 Use the `--verbose` flag to output stats at the end of summarization.
