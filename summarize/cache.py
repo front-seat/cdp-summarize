@@ -1,7 +1,10 @@
 import abc
 import json
+import logging
 import pathlib
 import typing as t
+
+logger = logging.getLogger(__name__)
 
 
 class BaseCache(abc.ABC):
@@ -158,6 +161,7 @@ class FileSystemCache(BaseCache):
         """Associate the given value with the given key."""
         path = self._cache_dir / f"{self.safe_key(key)}.txt"
         text = json.dumps(value)
+        logger.info("Caching %s to %s", key, path)
         path.write_text(text)
 
     def __contains__(self, key: str) -> bool:
@@ -202,13 +206,13 @@ class FileSystemCache(BaseCache):
     def get(self, key: str, default: dict | None = None) -> dict | None:
         """Return the value associated with the given key, or default."""
         try:
-            return self[self.safe_key(key)]
+            return self[key]
         except KeyError:
             return default
 
     def set(self, key: str, value: dict) -> None:
         """Associate the given value with the given key."""
-        self[self.safe_key(key)] = value
+        self[key] = value
 
     def safe_key(self, unsafe: str) -> str:
         """

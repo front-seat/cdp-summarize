@@ -15,6 +15,7 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
 from .prompts import HeadlineDetailPromptTemplates
+from .timeout import configure_openai_api_timeouts
 
 
 class SummarizationError(Exception):
@@ -249,6 +250,8 @@ class OpenAILanguageModel(LanguageModel):
         model_name: str | None,
         openai_api_key: str,
         openai_organization: str | None,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 30.0,
     ):
         super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.model_name = model_name or "gpt-3.5-turbo"
@@ -256,6 +259,7 @@ class OpenAILanguageModel(LanguageModel):
         self.openai_organization = openai_organization
         self.temperature = 0.4
         self.stats = OpenAIServiceStats()
+        configure_openai_api_timeouts(connect_timeout, read_timeout)
 
     def summarize(
         self,
