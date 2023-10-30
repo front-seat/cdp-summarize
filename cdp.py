@@ -12,6 +12,7 @@ import typing as t
 import click
 from fireo.queries.query_wrapper import ReferenceDocLoader
 
+from summarize.cache import FileSystemCache
 from summarize.connection import INSTANCE_NAMES, INSTANCES, CDPConnection
 from summarize.llm import HuggingFaceLanguageModel, LanguageModel, OpenAILanguageModel
 from summarize.prompts import PromptTemplates
@@ -279,6 +280,12 @@ def expand(
     default=None,
     required=False,
 )
+@click.option(
+    "--cachedir",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    default=None,
+    required=False,
+)
 def summarize(
     instance: str,
     event_ids: tuple,
@@ -289,6 +296,7 @@ def summarize(
     openai: str,
     huggingface: str | None,
     prompts: str | None,
+    cachedir: str | None,
     **kwargs: t.Any,
 ) -> None:
     """Fetch and summarize events from a CDP instance."""
@@ -332,8 +340,16 @@ def summarize(
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
+    cache: FileSystemCache | None = None
+    if cachedir:
+        cache_path = pathlib.Path(cachedir)
+        cache = FileSystemCache(cache_path)
+        logging.info(f"Using cache directory {cache_path}")
+
     connection = CDPConnection.for_name(instance)
-    summarizer = CDPSummarizer(llm=llm, connection=connection, prompts=prompt_templates)
+    summarizer = CDPSummarizer(
+        llm=llm, connection=connection, prompts=prompt_templates, cache=cache
+    )
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
     summaries = (summarizer.summarize_expanded_event(event) for event in events)
     summaries_list = list(summaries)  # for stats
