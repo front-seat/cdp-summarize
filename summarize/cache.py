@@ -161,7 +161,6 @@ class FileSystemCache(BaseCache):
         """Associate the given value with the given key."""
         path = self._cache_dir / f"{self.safe_key(key)}.txt"
         text = json.dumps(value)
-        logger.info("Caching %s to %s", key, path)
         path.write_text(text)
 
     def __contains__(self, key: str) -> bool:

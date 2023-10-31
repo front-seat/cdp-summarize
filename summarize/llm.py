@@ -251,7 +251,7 @@ class OpenAILanguageModel(LanguageModel):
         openai_api_key: str,
         openai_organization: str | None,
         connect_timeout: float = 5.0,
-        read_timeout: float = 30.0,
+        read_timeout: float = 60.0,
     ):
         super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.model_name = model_name or "gpt-3.5-turbo"
