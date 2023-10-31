@@ -1,10 +1,17 @@
 import io
+import logging
+import os
 
 import docx2txt
 import pdfplumber
+import pytesseract
 from cdp_backend.pipeline import transcript_model
+from pdf2image.exceptions import PDFInfoNotInstalledError
+from pdf2image.pdf2image import convert_from_bytes
 
 from .mime import split_content_type
+
+logger = logging.getLogger(__name__)
 
 # TODO the various _clean(...) methods are first-cut hacks built by looking
 # at lots of PDF documents and coming up with some okay-ish heuristics for
@@ -126,7 +133,7 @@ def _extract_text(io: io.BytesIO, charset: str | None) -> str:
     return data.decode(charset or "utf-8")
 
 
-def _extract_pdf(io: io.BytesIO) -> str:
+def _extract_pdf_machine_readable(io: io.BytesIO) -> str:
     """Extract text from a document using pdfPlumber. v1."""
     try:
         with pdfplumber.open(io) as pdf:
@@ -135,12 +142,57 @@ def _extract_pdf(io: io.BytesIO) -> str:
                 text = page.extract_text()
                 text = _clean_pdf(text)
                 texts.append(text)
-            return "\n".join(texts)
+            return "\n".join(texts).strip()
     except Exception as e:
         short_e = _truncate_str(str(e), 64)
         return (
             f"Please ignore: unable to extract content from the PDF named '{short_e}'."
         )
+
+
+TESSERACT_CMD: str | None = os.getenv("TESSERACT_CMD")
+POPPLER_PATH: str | None = os.getenv("POPPLER_PATH")
+
+
+def _extract_pdf_ocr(io: io.BytesIO) -> str:
+    """Extract from a document using tesseract OCR. v1."""
+    if not TESSERACT_CMD or not POPPLER_PATH:
+        logger.info(
+            "Would have used OCR on a PDF document, but "
+            "TESSERACT_CMD or POPPLER_PATH not set."
+        )
+        return ""
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    try:
+        text = ""
+        pdf_pages = convert_from_bytes(io.read(), dpi=300, poppler_path=POPPLER_PATH)
+        for page in pdf_pages:
+            text += pytesseract.image_to_string(page)
+    except PDFInfoNotInstalledError:
+        logger.exception(
+            "The `POPPLER_PATH` environment variable is not set correctly."
+        )
+        raise
+    except pytesseract.pytesseract.TesseractNotFoundError:
+        logger.exception(
+            "The `TESSERACT_CMD` environment variable is not set correctly."
+        )
+        raise
+    except Exception as e:
+        short_e = _truncate_str(str(e), 64)
+        return (
+            f"Please ignore: unable to extract content from the PDF named '{short_e}'."
+        )
+    return text.strip()
+
+
+def _extract_pdf(io: io.BytesIO) -> str:
+    """Extract text from a PDF document. v1."""
+    extracted = _extract_pdf_machine_readable(io)
+    if not extracted:
+        io.seek(0)
+        extracted = _extract_pdf_ocr(io)
+    return extracted
 
 
 def _extract_msword(io: io.BytesIO) -> str:
