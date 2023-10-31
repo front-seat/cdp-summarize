@@ -205,6 +205,10 @@ class CDPSummarizer:
         self.connection = connection
         self.cache = cache if cache is not None else InMemoryCache()
 
+    # ------------------------------------------------------------
+    # Raw summarization methods
+    # ------------------------------------------------------------
+
     def summarize_concise(self, text: str) -> SummarizationResult:
         """Use the concise summary style to summarize text."""
         return self.llm.summarize(text, self.prompts.concise)

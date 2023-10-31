@@ -211,6 +211,27 @@ class OpenAIServiceStats:
             f"total_cost_usd: ${self.total_cost_usd:.2f}\n"
         )
 
+    def to_dict(self) -> dict[str, t.Any]:
+        """Return a dict representation of this instance."""
+        return {
+            "total_tokens": self.total_tokens,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "successful_requests": self.successful_requests,
+            "total_cost_usd": self.total_cost_usd,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, t.Any]) -> "OpenAIServiceStats":
+        """Create an instance from a dict."""
+        return cls(
+            total_tokens=data["total_tokens"],
+            prompt_tokens=data["prompt_tokens"],
+            completion_tokens=data["completion_tokens"],
+            successful_requests=data["successful_requests"],
+            total_cost_usd=data["total_cost_usd"],
+        )
+
 
 class LanguageModel(abc.ABC):
     """

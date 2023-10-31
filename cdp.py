@@ -286,7 +286,7 @@ def expand(
     default=None,
     required=False,
 )
-def summarize(
+def summarize(  # noqa: C901
     instance: str,
     event_ids: tuple,
     start_date: datetime.datetime | None,
@@ -351,7 +351,13 @@ def summarize(
         llm=llm, connection=connection, prompts=prompt_templates, cache=cache
     )
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
-    summaries = (summarizer.summarize_expanded_event(event) for event in events)
+    try:
+        summaries = (summarizer.summarize_expanded_event(event) for event in events)
+    except KeyboardInterrupt:
+        print("Aborted.", file=sys.stderr)
+        if isinstance(llm, OpenAILanguageModel):
+            print(llm.stats, file=sys.stderr)
+        sys.exit(1)
     summaries_list = list(summaries)  # for stats
     print(fmt(summaries_list, jsonl))
 
