@@ -49,6 +49,16 @@ def _make_langchain_prompt(
     )
 
 
+def _clean_headline(unclean: str) -> str:
+    """Strip whitespace, as well as enclosing single or double quotes."""
+    clean = unclean.strip()
+    if clean.startswith('"') and clean.endswith('"'):
+        clean = clean[1:-1]
+    if clean.startswith("'") and clean.endswith("'"):
+        clean = clean[1:-1]
+    return clean
+
+
 SEPARATORS = ["\n\n", "\n", ". "]
 
 
@@ -149,7 +159,7 @@ def _summarize_langchain_llm(
     if "output_text" not in headline_outputs:
         raise SummarizationError("Missing expected key from headline_outputs.")
 
-    headline = headline_outputs["output_text"]
+    headline = _clean_headline(headline_outputs["output_text"])
 
     # We did it!
     return SummarizationResult(headline=headline.strip(), detail=detail.strip())
