@@ -42,6 +42,21 @@ The `./cdp.py` tool ships with a default set of prompt templates to generate sum
 
 The default prompts are tuned primarily for use with GPT-3.5-Turbo. If you're using a different model &mdash; for instance, an open model like [Mistral 7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) or [Llama2](https://huggingface.co/meta-llama) &mdash; you may want to tune the prompts. Simply create a new `custom-prompts.json` file wherever you like, and pass the `--prompts <path_to_file>` parameter to `./cdp.py events summarize ...`.
 
+### OCR
+
+City councils love their PDFs!
+
+Depending on the region, those PDFs may be machine readable already. If they are, we'll grab the content via `pdfplumber`. However, if the PDFs are scanned images, we need to OCR them. The CDP toolchain optionally supports OCR. If normal context extraction fails, and OCR tooling is available, `./cdp.py events summarize ...` will automatically use OCR as a fallback.
+
+To enable OCR, you'll need to:
+
+1. Install [Google's Tesseract](https://github.com/tesseract-ocr/tesseract) OCR library. If you're using a Mac, you can install Tesseract via `brew install tesseract`.
+2. Install the [Poppler PDF Tools](https://poppler.freedesktop.org). If you're using a Mac, you can install Poppler via `brew install poppler`.
+3. Set the `TESSERACT_CMD` environment variable to the path to the `tesseract` binary. For instance, if you're using a Mac, you might set `TESSERACT_CMD=$(brew --prefix)/bin/tesseract`.
+4. Set the `POPPLER_PATH` environment variable to the path containing poppler's binaries, like `pdfimages`. For instance, if you're using a Mac, you might set `POPPLER_PATH=$(brew --prefix)/bin`.
+
+All of this is optional. If `POPPLER_PATH` or `TESSERACT_CMD` are not set, OCR will not be used and the summaries of scanned PDFs will simply be blank.
+
 ### Caching intermediate results
 
 Summarization is a multi-step process. Complex events with long transcripts or large numbers of matters and matter files can take a while to summarize. To speed things up, you can cache intermediate results to the filesystem. Provide the `--cachedir <path_to_directory>` parameter to `./cdp.py events summarize ...` to specify a location to store cached summaries. If you need to stop a summarization and resume it later, simply re-run the same command with the same `--cachedir` parameter. You'll be glad you did!
