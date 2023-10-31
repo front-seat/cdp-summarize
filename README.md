@@ -68,22 +68,6 @@ Every item is summarized with both a short `headline` and a paragraph-length `de
 
 Example outputs for city council events in Seattle, Boston, Oakland, and Milwaukee are found in [the `./examples` directory](./examples/). Give them a look!
 
-Seattle bc316138545b:
-
-Summarized 1 events in 2,532.40 seconds.
-OpenAI LLM Stats:
-total_tokens: 129,868
-prompt_tokens: 106,502
-completion_tokens: 23,366
-successful_requests: 221
-total_cost_usd: $0.21
-
-Boston 319e357ca015:
-
-Oakland d2305d5903fc:
-
-Milwaukee 1c696af4b860:
-
 ## `cdp.py` command-line
 
 This is the main command-line tool for this project.
@@ -168,3 +152,31 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
+
+### NOTES
+
+Seattle bc316138545b:
+
+Summarized 1 events in 2,532.40 seconds.
+OpenAI LLM Stats:
+total_tokens: 129,868
+prompt_tokens: 106,502
+completion_tokens: 23,366
+successful_requests: 221
+total_cost_usd: $0.21
+
+Oakland d2305d5903fc:
+
+???
+
+Milwaukee 1c696af4b860:
+
+Summarized 1 events in 2,598.61 seconds.
+OpenAI LLM Stats:
+total_tokens: 83,835
+prompt_tokens: 67,275
+completion_tokens: 16,560
+successful_requests: 234
+total_cost_usd: $0.13
+
+Boston 319e357ca015:
