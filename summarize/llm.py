@@ -15,6 +15,7 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
 from .prompts import HeadlineDetailPromptTemplates
+from .timeout import configure_openai_api_timeouts
 
 
 class SummarizationError(Exception):
@@ -46,6 +47,16 @@ def _make_langchain_prompt(
     return PromptTemplate(
         template=rendered_prompt, input_variables=list(input_variables)
     )
+
+
+def _clean_headline(unclean: str) -> str:
+    """Strip whitespace, as well as enclosing single or double quotes."""
+    clean = unclean.strip()
+    if clean.startswith('"') and clean.endswith('"'):
+        clean = clean[1:-1]
+    if clean.startswith("'") and clean.endswith("'"):
+        clean = clean[1:-1]
+    return clean
 
 
 SEPARATORS = ["\n\n", "\n", ". "]
@@ -148,7 +159,7 @@ def _summarize_langchain_llm(
     if "output_text" not in headline_outputs:
         raise SummarizationError("Missing expected key from headline_outputs.")
 
-    headline = headline_outputs["output_text"]
+    headline = _clean_headline(headline_outputs["output_text"])
 
     # We did it!
     return SummarizationResult(headline=headline.strip(), detail=detail.strip())
@@ -200,6 +211,27 @@ class OpenAIServiceStats:
             f"total_cost_usd: ${self.total_cost_usd:.2f}\n"
         )
 
+    def to_dict(self) -> dict[str, t.Any]:
+        """Return a dict representation of this instance."""
+        return {
+            "total_tokens": self.total_tokens,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "successful_requests": self.successful_requests,
+            "total_cost_usd": self.total_cost_usd,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, t.Any]) -> "OpenAIServiceStats":
+        """Create an instance from a dict."""
+        return cls(
+            total_tokens=data["total_tokens"],
+            prompt_tokens=data["prompt_tokens"],
+            completion_tokens=data["completion_tokens"],
+            successful_requests=data["successful_requests"],
+            total_cost_usd=data["total_cost_usd"],
+        )
+
 
 class LanguageModel(abc.ABC):
     """
@@ -249,6 +281,8 @@ class OpenAILanguageModel(LanguageModel):
         model_name: str | None,
         openai_api_key: str,
         openai_organization: str | None,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 60.0,
     ):
         super().__init__(chunk_size=self.DEFAULT_CHUNK_SIZE)
         self.model_name = model_name or "gpt-3.5-turbo"
@@ -256,6 +290,7 @@ class OpenAILanguageModel(LanguageModel):
         self.openai_organization = openai_organization
         self.temperature = 0.4
         self.stats = OpenAIServiceStats()
+        configure_openai_api_timeouts(connect_timeout, read_timeout)
 
     def summarize(
         self,

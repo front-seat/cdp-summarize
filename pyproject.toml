@@ -46,3 +46,7 @@ ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
 show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = "requests"
+ignore_missing_imports = true

@@ -42,6 +42,12 @@ The `./cdp.py` tool ships with a default set of prompt templates to generate sum
 
 The default prompts are tuned primarily for use with GPT-3.5-Turbo. If you're using a different model &mdash; for instance, an open model like [Mistral 7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) or [Llama2](https://huggingface.co/meta-llama) &mdash; you may want to tune the prompts. Simply create a new `custom-prompts.json` file wherever you like, and pass the `--prompts <path_to_file>` parameter to `./cdp.py events summarize ...`.
 
+### Caching intermediate results
+
+Summarization is a multi-step process. Complex events with long transcripts or large numbers of matters and matter files can take a while to summarize. To speed things up, you can cache intermediate results to the filesystem. Provide the `--cachedir <path_to_directory>` parameter to `./cdp.py events summarize ...` to specify a location to store cached summaries. If you need to stop a summarization and resume it later, simply re-run the same command with the same `--cachedir` parameter. You'll be glad you did!
+
+It is safe to use the same cache directory for multiple CDP instances and multiple events. The tool does not evict the cache, and you probably want it somewhere stable on your filesystem anyway.
+
 ### Cost estimation
 
 Use the `--verbose` flag to output stats at the end of summarization.
@@ -61,22 +67,6 @@ Summary output is JSON and follows a simple data structure primarily defined by 
 Every item is summarized with both a short `headline` and a paragraph-length `detail`. The returned data structure contains summary roll-ups at every level (aka an `Event` has a rolled-up summary of all its `Matter`s and `Session`s, etc.)
 
 Example outputs for city council events in Seattle, Boston, Oakland, and Milwaukee are found in [the `./examples` directory](./examples/). Give them a look!
-
-Seattle bc316138545b:
-
-Summarized 1 events in 2,532.40 seconds.
-OpenAI LLM Stats:
-total_tokens: 129,868
-prompt_tokens: 106,502
-completion_tokens: 23,366
-successful_requests: 221
-total_cost_usd: $0.21
-
-Boston 319e357ca015:
-
-Oakland d2305d5903fc:
-
-Milwaukee 1c696af4b860:
 
 ## `cdp.py` command-line
 
@@ -162,3 +152,31 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
+
+### NOTES
+
+Seattle bc316138545b:
+
+Summarized 1 events in 2,532.40 seconds.
+OpenAI LLM Stats:
+total_tokens: 129,868
+prompt_tokens: 106,502
+completion_tokens: 23,366
+successful_requests: 221
+total_cost_usd: $0.21
+
+Oakland d2305d5903fc:
+
+???
+
+Milwaukee 1c696af4b860:
+
+Summarized 1 events in 2,598.61 seconds.
+OpenAI LLM Stats:
+total_tokens: 83,835
+prompt_tokens: 67,275
+completion_tokens: 16,560
+successful_requests: 234
+total_cost_usd: $0.13
+
+Boston 319e357ca015:
