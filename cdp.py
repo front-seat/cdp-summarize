@@ -214,6 +214,50 @@ def expand(
     print(fmt(events, jsonl))
 
 
+def _get_llm(openai: str, huggingface: str | None) -> LanguageModel:
+    """Get the language model to use based on provided input."""
+    llm: LanguageModel | None = None
+
+    # Does the user want to use huggingface? Make sure we have a key.
+    if huggingface is not None:
+        huggingfacehub_api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN", None)
+        if not huggingfacehub_api_token:
+            raise click.ClickException(
+                "You must set the HUGGINGFACEHUB_API_TOKEN environment variable to use your huggingface endpoint."  # noqa: E501
+            )
+        llm = HuggingFaceLanguageModel(
+            endpoint_url=huggingface, huggingfacehub_api_token=huggingfacehub_api_token
+        )
+
+    # If we're not using huggingface, make sure we have an OPENAI_API_KEY
+    if llm is None:
+        openai_api_key = os.getenv("OPENAI_API_KEY", None)
+        if not openai_api_key:
+            raise click.ClickException(
+                "You must set the OPENAI_API_KEY environment variable to use this command with GPT-3.5 or GPT-4."  # noqa: E501
+            )
+        llm = OpenAILanguageModel(
+            model_name=openai,
+            openai_api_key=openai_api_key,
+            openai_organization=os.getenv("OPENAI_ORGANIZATION", None),
+        )
+
+    if llm is None:
+        raise click.ClickException("Could not determine which language model to use.")
+
+    return llm
+
+
+def _print_stats(start_time: float, llm: LanguageModel, summaries: list) -> None:
+    elapsed_time = time.time() - start_time
+    print(
+        f"Summarized {len(summaries) or '???'} events in {elapsed_time:,.2f} seconds.",
+        file=sys.stderr,
+    )
+    if isinstance(llm, OpenAILanguageModel):
+        print(llm.stats, file=sys.stderr)
+
+
 @events.command()
 @click.option(
     "-i",
@@ -286,7 +330,7 @@ def expand(
     default=None,
     required=False,
 )
-def summarize(  # noqa: C901
+def summarize(
     instance: str,
     event_ids: tuple,
     start_date: datetime.datetime | None,
@@ -302,50 +346,17 @@ def summarize(  # noqa: C901
     """Fetch and summarize events from a CDP instance."""
     # Measure the total time elapsed
     start_time = time.time()
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
 
-    llm: LanguageModel | None = None
-
-    # Does the user want to use huggingface? Make sure we have a key.
-    if huggingface is not None:
-        huggingfacehub_api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN", None)
-        if not huggingfacehub_api_token:
-            raise click.ClickException(
-                "You must set the HUGGINGFACEHUB_API_TOKEN environment variable to use your huggingface endpoint."  # noqa: E501
-            )
-        llm = HuggingFaceLanguageModel(
-            endpoint_url=huggingface, huggingfacehub_api_token=huggingfacehub_api_token
-        )
-
-    # If we're not using huggingface, make sure we have an OPENAI_API_KEY
-    if llm is None:
-        openai_api_key = os.getenv("OPENAI_API_KEY", None)
-        if not openai_api_key:
-            raise click.ClickException(
-                "You must set the OPENAI_API_KEY environment variable to use this command with GPT-3.5 or GPT-4."  # noqa: E501
-            )
-        llm = OpenAILanguageModel(
-            model_name=openai,
-            openai_api_key=openai_api_key,
-            openai_organization=os.getenv("OPENAI_ORGANIZATION", None),
-        )
-
-    assert llm is not None
-
+    llm = _get_llm(openai, huggingface)
     prompt_templates = (
         PromptTemplates.from_file(pathlib.Path(prompts))
         if prompts
         else PromptTemplates.default()
     )
 
-    if verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    cache: FileSystemCache | None = None
-    if cachedir:
-        cache_path = pathlib.Path(cachedir)
-        cache = FileSystemCache(cache_path)
-        logging.info(f"Using cache directory {cache_path}")
-
+    cache = FileSystemCache.from_dir_name(cachedir) if cachedir else None
     connection = CDPConnection.for_name(instance)
     summarizer = CDPSummarizer(
         llm=llm, connection=connection, prompts=prompt_templates, cache=cache
@@ -353,23 +364,15 @@ def summarize(  # noqa: C901
     events = get_expanded_events(connection, start_date, end_date, list(event_ids))
     try:
         summaries = (summarizer.summarize_expanded_event(event) for event in events)
+        summaries_list = list(summaries)  # only done for stats
     except KeyboardInterrupt:
         print("Aborted.", file=sys.stderr)
-        if isinstance(llm, OpenAILanguageModel):
-            print(llm.stats, file=sys.stderr)
-        sys.exit(1)
-    summaries_list = list(summaries)  # for stats
+        summaries_list = []
     print(fmt(summaries_list, jsonl))
 
     # Print stats in verbose mode
     if verbose:
-        elapsed_time = time.time() - start_time
-        print(
-            f"Summarized {len(summaries_list)} events in {elapsed_time:,.2f} seconds.",
-            file=sys.stderr,
-        )
-        if isinstance(llm, OpenAILanguageModel):
-            print(llm.stats, file=sys.stderr)
+        _print_stats(start_time, llm, summaries_list)
 
 
 if __name__ == "__main__":

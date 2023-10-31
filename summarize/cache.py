@@ -220,3 +220,10 @@ class FileSystemCache(BaseCache):
         """
         safe = unsafe.replace("/", "_")
         return safe
+
+    @classmethod
+    def from_dir_name(cls, dir_name: str) -> "FileSystemCache":
+        """Return a new instance of this class from a directory name."""
+        cache_dir = pathlib.Path(dir_name)
+        logging.info("Using cache directory: %s", cache_dir)
+        return cls(cache_dir)
