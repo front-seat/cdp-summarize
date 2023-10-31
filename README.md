@@ -73,7 +73,7 @@ When using OpenAI, additional stats are provided. These include the number of pr
 
 Direct estimation of costs for Hugging Face endpoints is not yet supported. OpenAI charges by the token; Hugging Face endpoints charge by uptime and GPU selection. To get a rough estimate of costs, simply use the wall clock time. (Going one level deeper: the specific choice of GPU and model matter a _lot_. What you really want to know is prompt and completion token consumption and generation speed for your given model and hardware.)
 
-The four [example event summaries](./examples/) contained in this repository cost a total of $TODO to generate using `gpt-3.5-turbo`, for an average of $TODO per summary. (The most expensive summary, TODO, cost $TODO; the least expensive summary, TODO, cost $TODO.)
+The four [example event summaries](./examples/) contained in this repository cost a total of $0.85 to generate using `gpt-3.5-turbo`, for an average of $0.21 per summary. (The most expensive summary, `oakland-d2305d5903fc`, cost $0.40; the least expensive summary, `boston-319e357ca015`, cost $0.11.) Speed varies, but an estimate of 20-ish minutes wall clock time for an event summary doesn't seem unreasonable. A HuggingFace A10G 24GB endpoint (perfect for Mistral 7B) might cost $0.43 for summary.
 
 ## Example summary output
 
@@ -167,31 +167,3 @@ Summarization can take a while. You can turn on verbose output (to `stderr`) wit
 ```
 
 The `--id` and `--start-date`/`--end-date` filters are available here, too.
-
-### NOTES
-
-Seattle bc316138545b:
-
-Summarized 1 events in 2,532.40 seconds.
-OpenAI LLM Stats:
-total_tokens: 129,868
-prompt_tokens: 106,502
-completion_tokens: 23,366
-successful_requests: 221
-total_cost_usd: $0.21
-
-Oakland d2305d5903fc:
-
-???
-
-Milwaukee 1c696af4b860:
-
-Summarized 1 events in 2,598.61 seconds.
-OpenAI LLM Stats:
-total_tokens: 83,835
-prompt_tokens: 67,275
-completion_tokens: 16,560
-successful_requests: 234
-total_cost_usd: $0.13
-
-Boston 319e357ca015:

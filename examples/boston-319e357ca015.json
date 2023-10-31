@@ -1,0 +1,62 @@
+[
+  {
+    "key": "event/319e357ca015",
+    "headline": "Mayor Wu Proposes $1.45 Billion Budget for Boston Public Schools, Focus on Inclusive Education and Mental Health",
+    "detail": "The City Council event on %A, %B %-d, %Y focused on the budget review process for the city of Boston. Mayor Michelle Wu proposed a $1.45 billion budget for Boston Public Schools, with a focus on inclusive education and mental health. The budget also includes $26 million for school facility improvements and an $84 million increase in public education funding. Mayor Wu also proposed allocating $40 million to address the city's unfunded liability for retiree healthcare benefits. The council discussed various financial matters, including pension liability and revenue sources, emphasizing equity and transparency. They also explored investments in education, public health, public safety, and infrastructure. Other topics discussed included property taxes, housing, job training, and civic engagement. The council emphasized addressing community needs and equitable distribution of resources.",
+    "dt": "2023-04-24T14:00:00+00:00",
+    "matter_summaries": [
+      {
+        "key": "matter/a2a465273bcc",
+        "headline": "Annual Appropriation and Tax Order for FY2024 Filed with City Clerk.",
+        "detail": "The document titled \"Message and order for Annual Appropriation and Tax Order for FY2024\" was filed in the Office of the City Clerk on April 10, 2023. However, the content of the document is not available as it returns a HTTP Error 404: Not Found.",
+        "matter_file_summaries": [
+          {
+            "key": "matter_file/3e5b9c009ba5",
+            "headline": "Failed to summarize",
+            "detail": "HTTP Error 404: Not Found",
+            "uri": "https://boston.legistar1.com/boston/attachments/c68ae4bf-1758-459b-9fd6-edd961fb56cf.pdf"
+          }
+        ]
+      },
+      {
+        "key": "matter/b37164dfd8ae",
+        "headline": "Boston Mayor Proposes $1.45 Billion Budget for Boston Public Schools, Including $26 Million for School Facilities and $84 Million Increase in Public Education Funding.",
+        "detail": "Boston Mayor Michelle Wu has proposed a $1.45 billion budget for the Boston Public Schools for FY2024. The budget focuses on inclusive education, multilingual education, equitable literacy, restorative justice and mental health, high school and alternative education, and community engagement. It includes $26 million in new investments for school facility improvements. The budget also includes an $84 million increase in public education funding, totaling $1.7 billion.",
+        "matter_file_summaries": [
+          {
+            "key": "matter_file/95513db9b020",
+            "headline": "Boston Mayor proposes $1.45B budget for inclusive education and community engagement in Boston Public Schools.",
+            "detail": "Boston Mayor Michelle Wu has submitted a $1.45 billion budget for the Boston Public Schools (BPS) for Fiscal Year 2024. The budget focuses on six priority areas, including inclusive education, multilingual education, equitable literacy, restorative justice and mental health, high school and alternative education, and community engagement. It includes $26 million in new investments and aims to support transformative change and improve school facilities. The budget also includes an $84 million increase in public education funding, bringing the total to $1.7 billion.",
+            "uri": "https://boston.legistar1.com/boston/attachments/b2035951-8381-4073-bdf1-8876644058f6.pdf"
+          }
+        ]
+      },
+      {
+        "key": "matter/338d776844f9",
+        "headline": "Boston Mayor proposes $40 million allocation to OPEB Trust Fund to address unfunded liability and preserve healthcare benefits for retirees.",
+        "detail": "Boston Mayor Michelle Wu has proposed allocating $40 million to the Other Post-Employment Benefits (OPEB) Liability Trust Fund to address the city's $2.19 billion unfunded liability. The funds will be used to preserve healthcare benefits for current and future retirees.",
+        "matter_file_summaries": [
+          {
+            "key": "matter_file/02d2829c1412",
+            "headline": "Boston Mayor proposes $40 million for healthcare benefits for retirees.",
+            "detail": "Boston Mayor Michelle Wu has proposed allocating $40 million to the Other Post-Employment Benefits (OPEB) Liability Trust Fund, in an effort to address the city's estimated $2.19 billion unfunded liability. The Mayor is prioritizing the preservation of healthcare benefits for current and future retirees within the city's budget.",
+            "uri": "https://boston.legistar1.com/boston/attachments/20bc78cd-be62-40d4-9082-ece2aacc7ae3.pdf"
+          }
+        ]
+      }
+    ],
+    "session_summaries": [
+      {
+        "key": "session/fca7ada64cee",
+        "headline": "Budget Review and Community Engagement in Focus at Boston City Council Meeting.",
+        "detail": "The city council meeting focused on the budget review process for the city of Boston. The council encouraged resident participation in public hearings to discuss the fiscal year 2024 operating budget. The recommended budget includes a 6.8% increase and prioritizes long-term obligations, sustaining services, operational issues, and new investments. The council discussed financial matters such as pension liability, fair wages, and fixed costs, emphasizing equity, economic development, and transparency. They addressed concerns about property taxes, revenue sources, and the need for additional revenue options. The meeting explored investments in education, public health, public safety, and infrastructure, as well as the allocation of resources for different departments and programs. Discussions also included literacy efforts, inclusive education, career exploration, revenue allocation, state aid, and the need for a centralized pest control department. Overall, the meeting focused on budgetary matters, equity, and the allocation of resources to support Boston communities. Various other topics were discussed, including BPS athletics, before and after school programming, the census undercount's impact on state aid, retiree cost-of-living adjustments, funding for English classes, mental health clinicians, housing, triple-A bond rating, retired homeowners subsidies, pedestrian safety, job training, civic engagement, technology for voting, debt service costs, investment in different age groups, property taxes, speeding, potholes, frustrations with lack of transparency and resource allocation, and the importance of tangible results and return on investment. The council emphasized addressing community needs, transparency, and equitable distribution of resources.",
+        "transcript_summary": {
+          "key": "transcript/78cda43bd1a9",
+          "headline": "Budget Review and Community Engagement in Focus at Boston City Council Meeting.",
+          "detail": "The city council meeting focused on the budget review process for the city of Boston. The council encouraged resident participation in public hearings to discuss the fiscal year 2024 operating budget. The recommended budget includes a 6.8% increase and prioritizes long-term obligations, sustaining services, operational issues, and new investments. The council discussed financial matters such as pension liability, fair wages, and fixed costs, emphasizing equity, economic development, and transparency. They addressed concerns about property taxes, revenue sources, and the need for additional revenue options. The meeting explored investments in education, public health, public safety, and infrastructure, as well as the allocation of resources for different departments and programs. Discussions also included literacy efforts, inclusive education, career exploration, revenue allocation, state aid, and the need for a centralized pest control department. Overall, the meeting focused on budgetary matters, equity, and the allocation of resources to support Boston communities. Various other topics were discussed, including BPS athletics, before and after school programming, the census undercount's impact on state aid, retiree cost-of-living adjustments, funding for English classes, mental health clinicians, housing, triple-A bond rating, retired homeowners subsidies, pedestrian safety, job training, civic engagement, technology for voting, debt service costs, investment in different age groups, property taxes, speeding, potholes, frustrations with lack of transparency and resource allocation, and the importance of tangible results and return on investment. The council emphasized addressing community needs, transparency, and equitable distribution of resources.",
+          "uri": "gs://cdp-boston-c384047b.appspot.com/fe21cf1bdd74e4487ff4743b06accc3788b3b03cc2dd0439fb31765bb3613f0d-cdp_4_0_9-transcript.json"
+        }
+      }
+    ]
+  }
+]
